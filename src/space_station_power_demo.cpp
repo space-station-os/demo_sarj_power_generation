@@ -187,11 +187,11 @@ public:
         this->inv_local_frame_rot_mat = local_frame_rot_mat.inverse();
     }
 
-    Eigen::Vector3d get_local_pos(const Eigen::Vector3d& global_pos_vec) {
+    Eigen::Vector3d get_local_pos(const Eigen::Vector3d& global_pos_vec) const {
         return this->inv_local_frame_rot_mat * (global_pos_vec - this->local_frame_ori_vec);
     }
 
-    Eigen::Vector3d get_global_pos(const Eigen::Vector3d& local_pos_vec) {
+    Eigen::Vector3d get_global_pos(const Eigen::Vector3d& local_pos_vec) const {
         return this->local_frame_rot_mat * local_pos_vec + this->local_frame_ori_vec;
     }
 
@@ -204,15 +204,15 @@ public:
         this->local_frame_ori_vec = local_frame_ori_vec;
     }
 
-    const Eigen::Matrix3d& get_local_frame_rot_mat() {
+    const Eigen::Matrix3d& get_local_frame_rot_mat() const {
         return this->local_frame_rot_mat;
     }
 
-    const Eigen::Matrix3d& get_inv_local_frame_rot_mat() {
+    const Eigen::Matrix3d& get_inv_local_frame_rot_mat() const {
         return this->inv_local_frame_rot_mat;
     }
 
-    const Eigen::Vector3d& get_local_frame_ori_vec() {
+    const Eigen::Vector3d& get_local_frame_ori_vec() const {
         return this->local_frame_ori_vec;
     }
 };
@@ -321,7 +321,7 @@ private:
 
     rclcpp::TimerBase::SharedPtr timer_;
 
-    Eigen::Vector3d calc_earth_pos_vec(double t) {
+    Eigen::Vector3d calc_earth_pos_vec(double t) const {
         // -------- Calculate earth position @SCI at t --------
         double cur_phase = this->earth_init_phase + this->earth_revolution_w * t;
         Eigen::Vector3d earth_pos_vec(
@@ -332,7 +332,7 @@ private:
         return earth_pos_vec;
     }
 
-    Eigen::Vector3d calc_ss_pos_vec(double t) {
+    Eigen::Vector3d calc_ss_pos_vec(double t) const {
         // -------- Calculate SS position @ECI at t --------
         // Current SS phase at ECI
         double cur_phase = this->earth_init_phase + this->ss_revolution_w * t;
@@ -349,6 +349,41 @@ private:
     }
 
 public:
+
+    SpaceStationPhysics() : Node("space_station_power_demo")
+    {
+        // -------- Declare parameters and set default value --------
+        this->declare_parameter<double>("ss_altitude", 400 * 1e3);
+        this->declare_parameter<double>("ss_raan", deg2rad(10.0));
+        this->declare_parameter<double>("ss_inclination", deg2rad(20.0));
+
+        this->declare_parameter<std::vector<double>>("ss_init_euler_angle", {0.0, 0.0, 0.0});
+        this->declare_parameter<std::vector<double>>("ss_init_w_vec", {0.0, 0.02, 0.0});
+
+        this->declare_parameter<double>("simu_timestep", 10);
+        this->declare_parameter<double>("simu_speed_rate", 100);
+
+        // -------- Get parameters --------
+        double ss_altitude = this->get_parameter("ss_altitude").as_double();
+        double ss_raan = this->get_parameter("ss_raan").as_double();
+        double ss_inclination = this->get_parameter("ss_inclination").as_double();
+
+        std::vector<double> temp_ss_init_euler_vec = this->get_parameter("ss_init_euler_angle").as_double_array();
+        std::vector<double> temp_ss_init_w_vec = this->get_parameter("ss_init_w_vec").as_double_array();
+        
+        double simu_timestep = this->get_parameter("simu_timestep").as_double();
+        double simu_speed_rate = this->get_parameter("simu_speed_rate").as_double();
+
+        // -------- Convert --------
+        Eigen::Vector3d ss_init_euler_vec = EigenUtil::from_std_vector(temp_ss_init_euler_vec);
+        Eigen::Vector3d ss_init_w_vec = EigenUtil::from_std_vector(temp_ss_init_w_vec);
+        
+        this->initialize(
+            ss_altitude, ss_raan, ss_inclination,
+            ss_init_euler_vec, ss_init_w_vec,
+            simu_timestep, simu_speed_rate
+        );
+    }
 
     void initialize(
         double ss_altitude, double ss_raan, double ss_inclination,
@@ -372,7 +407,7 @@ public:
         this->ss_revolution_w = 2.0 * PI / ss_revolution_period;
 
         Eigen::Matrix3d ss_plane_inertia_rot_mat = Rotation::euler2dcm(
-            Eigen::Vector3d(ss_raan, 0.0, ss_inclination)
+            Eigen::Vector3d(ss_inclination, 0.0, ss_raan)
         );
         this->ss_plane_inertia_ft = FrameTransformer(
             ss_plane_inertia_rot_mat.transpose(), Eigen::Vector3d::Zero()
@@ -423,41 +458,6 @@ public:
         this->publisher_soc_ = this->create_publisher<std_msgs::msg::Float64>("soc", 10);
     }
     
-    SpaceStationPhysics() : Node("space_station_power_demo")
-    {
-        // -------- Declare parameters and set default value --------
-        this->declare_parameter<double>("ss_altitude", 400 * 1e3);
-        this->declare_parameter<double>("ss_raan", deg2rad(0.0));
-        this->declare_parameter<double>("ss_inclination", deg2rad(20.0));
-
-        this->declare_parameter<std::vector<double>>("ss_init_euler_angle", {0.0, 0.0, 0.0});
-        this->declare_parameter<std::vector<double>>("ss_init_w_vec", {0.0, 0.02, 0.0});
-
-        this->declare_parameter<double>("simu_timestep", 10);
-        this->declare_parameter<double>("simu_speed_rate", 100);
-
-        // -------- Get parameters --------
-        double ss_altitude = this->get_parameter("ss_altitude").as_double();
-        double ss_raan = this->get_parameter("ss_raan").as_double();
-        double ss_inclination = this->get_parameter("ss_inclination").as_double();
-
-        std::vector<double> temp_ss_init_euler_vec = this->get_parameter("ss_init_euler_angle").as_double_array();
-        std::vector<double> temp_ss_init_w_vec = this->get_parameter("ss_init_w_vec").as_double_array();
-        
-        double simu_timestep = this->get_parameter("simu_timestep").as_double();
-        double simu_speed_rate = this->get_parameter("simu_speed_rate").as_double();
-
-        // -------- Convert --------
-        Eigen::Vector3d ss_init_euler_vec = EigenUtil::from_std_vector(temp_ss_init_euler_vec);
-        Eigen::Vector3d ss_init_w_vec = EigenUtil::from_std_vector(temp_ss_init_w_vec);
-        
-        this->initialize(
-            ss_altitude, ss_raan, ss_inclination,
-            ss_init_euler_vec, ss_init_w_vec,
-            simu_timestep, simu_speed_rate
-        );
-    }
-
     void update(double new_t) {
 
         // Simulation time
@@ -561,7 +561,7 @@ public:
         this->publisher_soc_->publish(message_soc);
     }
 
-    Eigen::Vector3d calc_ss_sap_normal_vec() {
+    Eigen::Vector3d calc_ss_sap_normal_vec() const {
         //
 
         Eigen::Matrix3d sarj_rot_mat = Eigen::Matrix3d::Identity();
@@ -580,7 +580,7 @@ public:
         return this->t;
     }
 
-    Eigen::Vector3d get_ss_sap_normal_vec() {
+    Eigen::Vector3d get_ss_sap_normal_vec() const {
         return this->ss_sap_normal_vec;
     }
 
@@ -588,7 +588,7 @@ public:
         this->sarj_angle = sarj_angle;
     }
 
-    Eigen::Vector3d get_sun_pos_at_ss_vec() {
+    Eigen::Vector3d get_sun_pos_at_ss_vec() const {
         // -------- Calculate sun position vector at BF --------
         Eigen::Vector3d sun_pos_eci_vec = this->sci_eci_ft.get_local_pos(Eigen::Vector3d::Zero());
         // Position vector of the Sun seen from the origin of BF-frame.
