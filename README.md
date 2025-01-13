@@ -45,3 +45,7 @@ Three messages are published.
 - generated power [W]
 - battery level [Wh] (or state of charge, SoC).
 You can check them by using rosbag or rqt_plot.
+
+## To-do
+Implementation of SARJ (Solar Alpha Rotary Joint) control.
+By controling SARJ angle, power generation amount can be optimized.
