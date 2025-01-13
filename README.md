@@ -1,4 +1,3 @@
-
 # Space Station Power Generation and SARJ Control Demo
 
 ## Command and published output
@@ -6,7 +5,7 @@
 $ cd space_station_os_dev/src/space_station_power_demo
 $ colcon build
 $ source install/setup.bash
-$ ros2 run space_station_power_demo space_station_power_demo
+$ ros2 run demo_sarj_power_generation demo_sarj_power_generation
 ```
 Then the ROS node "space_station_power_demo" publishes two messages, generated power [W] and battery level [Wh] (or state of charge, SoC). They can be shown by rqt_plot.
 If you plot them, graphs are like this:
@@ -20,7 +19,8 @@ The space station rotetes around the earth. Its orbit is perfect circle. Orbital
 ### Power generation
 Shade of the space station by the earth is simulated.
 And SAP angle to the sun is calculated.
-If the space station is not in shade by the earth, its SAP can generate power. Its amount depends on the SAP angle to the sun.
+If the space station is not in shade by the earth, its SAP can generate power.
+Its amount depends on the SAP angle to the sun. The angle between the normal vector of the solar cell and the vector in the sun direction is $$\theta$$. The amount of power generated is proportional to $$\cos(\theta)$$, with a maximum value of max_generated_power when $$\theta=0$$ degrees.
 
 ## Parameters
 Space station parameters:
@@ -36,7 +36,7 @@ Simulation parameters:
 
 These parameters can be set by like:
 ```
-ros2 run space_station_power_demo space_station_power_demo --ros-args -p simu_timestep:="2.0"
+ros2 run demo_sarj_power_generation demo_sarj_power_generation --ros-args -p simu_timestep:="2.0"
 ```
 
 ## Publish
@@ -47,5 +47,5 @@ Three messages are published.
 You can check them by using rosbag or rqt_plot.
 
 ## To-do
-Implementation of SARJ (Solar Alpha Rotary Joint) control.
-By controling SARJ angle, power generation amount can be optimized.
+- Implementation of SARJ (Solar Alpha Rotary Joint) control. By controling SARJ angle, power generation amount can be optimized.
+- Split code. All programs are written in src/demo_sarj_power_generation.cpp now. They should be splitted into different files.
