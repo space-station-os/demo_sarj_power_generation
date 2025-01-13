@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(space_station_power_demo)
+project(demo_sarj_power_generation)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -28,18 +28,18 @@ find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 
-add_executable(space_station_power_demo src/space_station_power_demo.cpp)
+add_executable(demo_sarj_power_generation src/demo_sarj_power_generation.cpp)
 ament_target_dependencies(
-  space_station_power_demo 
+  demo_sarj_power_generation 
   rclcpp 
   geometry_msgs
   std_msgs
   )
 
 install(TARGETS
-  space_station_power_demo
+demo_sarj_power_generation
   DESTINATION lib/${PROJECT_NAME})
 
-target_include_directories(space_station_power_demo PRIVATE ${EIGEN3_INCLUDE_DIR})
+target_include_directories(demo_sarj_power_generation PRIVATE ${EIGEN3_INCLUDE_DIR})
 
 ament_package()
