@@ -12,6 +12,10 @@
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/float64.hpp>
 
+#include "eigen_util.hpp"
+#include "rotation.hpp"
+#include "frame_transformer.hpp"
+
 
 constexpr double PI = 3.141592653589793;
 
@@ -21,201 +25,8 @@ constexpr double EARTH_RADIUS = 6378.14 * 1e3;
 constexpr double G_ME = 3.986004418e14;
 
 
-namespace EigenUtil {
-
-    void print_vector3d(const Eigen::Vector3d& vec) {
-        std::cout << "["
-            << vec(0) << ", "
-            << vec(1) << ", "
-            << vec(2) << "]"
-            << std::endl;
-    }
-
-    void print_matrix3d(const Eigen::Matrix3d& mat) {
-        
-        for (int i = 0; i < 3; ++i) {
-            if (i == 0) {
-                std::cout << "[";
-            }
-            else {
-                std::cout << " ";
-            }
-
-            std::cout << "["
-                << std::setw(10) << mat(i, 0) << " "
-                << std::setw(10) << mat(i, 1) << " "
-                << std::setw(10) << mat(i, 2);
-
-            if (i == 2) {
-                std::cout << "]]" << std::endl;
-            }
-            else {
-                std::cout << "]," << std::endl;
-            }
-        }
-    }
-
-    Eigen::Vector3d from_std_vector(const std::vector<double>& vec){
-        Eigen::Vector3d out_vec(3);
-        for (size_t i=0; i<3; ++i){
-            out_vec[i] = vec[i];
-        }
-        return out_vec;
-    }
-}
-
-
-namespace Rotation {
-
-    Eigen::Matrix3d quat2dcm(const Eigen::Vector4d& quat_vec) {
-
-        const Eigen::Vector4d& q = quat_vec;
-        auto qs = quat_vec.array() * quat_vec.array();
-
-        Eigen::Matrix3d dcm_mat;
-        
-        dcm_mat.coeffRef(0, 0) = qs(0) - qs(1) - qs(2) + qs(3);
-        dcm_mat.coeffRef(0, 1) = 2 * (q(0) * q(1) + q(2) * q(3));
-        dcm_mat.coeffRef(0, 2) = 2 * (q(0) * q(2) - q(1) * q(3));
-
-        dcm_mat.coeffRef(1, 0) = 2 * (q(0) * q(1) - q(2) * q(3));
-        dcm_mat.coeffRef(1, 1) = qs(1) - qs(0) - qs(2) + qs(3);
-        dcm_mat.coeffRef(1, 2) = 2 * (q(1) * q(2) + q(0) * q(3));
-
-        dcm_mat.coeffRef(2, 0) = 2 * (q(0) * q(2) + q(1) * q(3));
-        dcm_mat.coeffRef(2, 1) = 2 * (q(1) * q(2) - q(0) * q(3));
-        dcm_mat.coeffRef(2, 2) = qs(2) - qs(0) - qs(1) + qs(3);
-
-        return dcm_mat;
-    }
-
-
-    Eigen::Matrix3d euler2dcm(const Eigen::Vector3d& euler_vec) {
-        auto sin_euler_vec = euler_vec.array().sin();
-        auto cos_euler_vec = euler_vec.array().cos();
-
-        double s0 = sin_euler_vec[0];
-        double s1 = sin_euler_vec[1];
-        double s2 = sin_euler_vec[2];
-        double c0 = cos_euler_vec[0];
-        double c1 = cos_euler_vec[1];
-        double c2 = cos_euler_vec[2];
-
-        Eigen::Matrix3d dcm_mat;
-
-        dcm_mat.coeffRef(0, 0) = c1 * c2;
-        dcm_mat.coeffRef(0, 1) = c1 * s2;
-        dcm_mat.coeffRef(0, 2) = -s1;
-
-        dcm_mat.coeffRef(1, 0) = -c0 * s2 + s0 * s1 * c2;
-        dcm_mat.coeffRef(1, 1) = c0 * c2 + s0 * s1 * s2;
-        dcm_mat.coeffRef(1, 2) = s0 * c1;
-
-        dcm_mat.coeffRef(2, 0) = s0 * s2 + c0 * s1 * c2;
-        dcm_mat.coeffRef(2, 1) = -s0 * c2 + c0 * s1 * s2;
-        dcm_mat.coeffRef(2, 2) = c0 * c1;
-
-        return dcm_mat;
-    }
-
-    Eigen::Vector4d dcm2quat(const Eigen::Matrix3d& dcm) {
-
-        std::vector<double> temp_q_vec{
-            std::sqrt(1.0 + dcm.coeff(0, 0) - dcm.coeff(1, 1) - dcm.coeff(2, 2)) / 2.0,
-            std::sqrt(1.0 - dcm.coeff(0, 0) + dcm.coeff(1, 1) - dcm.coeff(2, 2)) / 2.0,
-            std::sqrt(1.0 - dcm.coeff(0, 0) - dcm.coeff(1, 1) + dcm.coeff(2, 2)) / 2.0,
-            std::sqrt(1.0 + dcm.coeff(0, 0) + dcm.coeff(1, 1) + dcm.coeff(2, 2)) / 2.0
-        };
-
-        Eigen::Vector4d quat_vec;
-
-        std::vector<double>::iterator max_it = std::max_element(temp_q_vec.begin(), temp_q_vec.end());
-        size_t max_idx = std::distance(temp_q_vec.begin(), max_it);
-
-
-        if (max_idx == 0) {
-            quat_vec.coeffRef(1) = dcm.coeff(0, 1) + dcm.coeff(1, 0);
-            quat_vec.coeffRef(2) = dcm.coeff(0, 2) + dcm.coeff(2, 0);
-            quat_vec.coeffRef(3) = dcm.coeff(1, 2) - dcm.coeff(2, 1);
-        }
-        else if (max_idx == 1) {
-            quat_vec.coeffRef(0) = dcm.coeff(0, 1) + dcm.coeff(1, 0);
-            quat_vec.coeffRef(2) = dcm.coeff(2, 1) + dcm.coeff(1, 2);
-            quat_vec.coeffRef(3) = dcm.coeff(2, 0) - dcm.coeff(0, 2);
-        }
-        else if (max_idx == 2) {
-            quat_vec.coeffRef(0) = dcm.coeff(2, 0) + dcm.coeff(0, 2);
-            quat_vec.coeffRef(1) = dcm.coeff(2, 1) + dcm.coeff(1, 2);
-            quat_vec.coeffRef(3) = dcm.coeff(0, 1) - dcm.coeff(1, 0);
-        }
-        else {
-            quat_vec.coeffRef(0) = dcm.coeff(1, 2) - dcm.coeff(2, 1);
-            quat_vec.coeffRef(1) = dcm.coeff(2, 0) - dcm.coeff(0, 2);
-            quat_vec.coeffRef(2) = dcm.coeff(0, 1) - dcm.coeff(1, 0);
-        }
-
-        quat_vec *= (0.25 / temp_q_vec[max_idx]);
-        quat_vec[max_idx] = temp_q_vec[max_idx];
-
-        return quat_vec;
-    }
-};
-
-
 inline constexpr double deg2rad(double deg) { return deg / 180.0 * PI; }
 inline constexpr double rad2deg(double rad) { return rad / PI * 180.0; }
-
-
-class FrameTransformer
-{
-private:
-    Eigen::Matrix3d local_frame_rot_mat;
-    Eigen::Matrix3d inv_local_frame_rot_mat;
-    Eigen::Vector3d local_frame_ori_vec;
-
-public:
-
-    FrameTransformer() {
-        this->local_frame_rot_mat = Eigen::Matrix3d::Identity();
-        this->inv_local_frame_rot_mat = Eigen::Matrix3d::Identity();
-        this->local_frame_ori_vec = Eigen::Vector3d::Zero();
-    }
-
-    FrameTransformer(const Eigen::Matrix3d& local_frame_rot_mat, const Eigen::Vector3d& local_frame_ori_vec) {
-        this->local_frame_rot_mat = local_frame_rot_mat;
-        this->local_frame_ori_vec = local_frame_ori_vec;
-        this->inv_local_frame_rot_mat = local_frame_rot_mat.inverse();
-    }
-
-    Eigen::Vector3d get_local_pos(const Eigen::Vector3d& global_pos_vec) const {
-        return this->inv_local_frame_rot_mat * (global_pos_vec - this->local_frame_ori_vec);
-    }
-
-    Eigen::Vector3d get_global_pos(const Eigen::Vector3d& local_pos_vec) const {
-        return this->local_frame_rot_mat * local_pos_vec + this->local_frame_ori_vec;
-    }
-
-    void update_rot_mat(const Eigen::Matrix3d& local_frame_rot_mat) {
-        this->local_frame_rot_mat = local_frame_rot_mat;
-        this->inv_local_frame_rot_mat = local_frame_rot_mat.inverse();
-    }
-
-    void update_ori_vec(const Eigen::Vector3d& local_frame_ori_vec) {
-        this->local_frame_ori_vec = local_frame_ori_vec;
-    }
-
-    const Eigen::Matrix3d& get_local_frame_rot_mat() const {
-        return this->local_frame_rot_mat;
-    }
-
-    const Eigen::Matrix3d& get_inv_local_frame_rot_mat() const {
-        return this->inv_local_frame_rot_mat;
-    }
-
-    const Eigen::Vector3d& get_local_frame_ori_vec() const {
-        return this->local_frame_ori_vec;
-    }
-};
 
 
 Eigen::Vector4d quaternion_diff_equ(const Eigen::Vector4d& q_vec, const Eigen::Vector3d& w_vec) {
@@ -319,7 +130,8 @@ private:
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_generated_power_;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_soc_;
 
-    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::TimerBase::SharedPtr update_dynamics_timer;
+    rclcpp::TimerBase::SharedPtr publish_value_timer;
 
     Eigen::Vector3d calc_earth_pos_vec(double t) const {
         // -------- Calculate earth position @SCI at t --------
@@ -348,48 +160,11 @@ private:
         return this->ss_plane_inertia_ft.get_global_pos(ss_pos_plane_vec);
     }
 
-public:
-
-    SpaceStationPhysics() : Node("demo_sarj_power_generation")
-    {
-        // -------- Declare parameters and set default value --------
-        this->declare_parameter<double>("ss_altitude", 400 * 1e3);
-        this->declare_parameter<double>("ss_raan", deg2rad(10.0));
-        this->declare_parameter<double>("ss_inclination", deg2rad(20.0));
-
-        this->declare_parameter<std::vector<double>>("ss_init_euler_angle", {0.0, 0.0, 0.0});
-        this->declare_parameter<std::vector<double>>("ss_init_w_vec", {0.0, 0.02, 0.0});
-
-        this->declare_parameter<double>("simu_timestep", 10);
-        this->declare_parameter<double>("simu_speed_rate", 100);
-
-        // -------- Get parameters --------
-        double ss_altitude = this->get_parameter("ss_altitude").as_double();
-        double ss_raan = this->get_parameter("ss_raan").as_double();
-        double ss_inclination = this->get_parameter("ss_inclination").as_double();
-
-        std::vector<double> temp_ss_init_euler_vec = this->get_parameter("ss_init_euler_angle").as_double_array();
-        std::vector<double> temp_ss_init_w_vec = this->get_parameter("ss_init_w_vec").as_double_array();
-        
-        double simu_timestep = this->get_parameter("simu_timestep").as_double();
-        double simu_speed_rate = this->get_parameter("simu_speed_rate").as_double();
-
-        // -------- Convert --------
-        Eigen::Vector3d ss_init_euler_vec = EigenUtil::from_std_vector(temp_ss_init_euler_vec);
-        Eigen::Vector3d ss_init_w_vec = EigenUtil::from_std_vector(temp_ss_init_w_vec);
-        
-        this->initialize(
-            ss_altitude, ss_raan, ss_inclination,
-            ss_init_euler_vec, ss_init_w_vec,
-            simu_timestep, simu_speed_rate
-        );
-    }
-
     void initialize(
         double ss_altitude, double ss_raan, double ss_inclination,
         const Eigen::Vector3d& ss_init_euler_vec,
         const Eigen::Vector3d& ss_init_w_vec,
-        double simu_timestep, double simu_speed_rate
+        double simu_timestep, double pulish_period, double speed_rate
     )
     {
         this->sun_earth_distance = 149600000 * 1e3;
@@ -426,7 +201,7 @@ public:
             Eigen::Matrix3d::Identity(), this->ss_pos_vec
         );
 
-        Eigen::Matrix3d ss_attitude_rot_mat = Rotation::euler2dcm(ss_init_euler_vec);//.transpose();
+        Eigen::Matrix3d ss_attitude_rot_mat = Rotation::euler2dcm(ss_init_euler_vec);
         this->ss_quaternion_vec = Rotation::dcm2quat(ss_attitude_rot_mat);
         this->ss_w_vec = ss_init_w_vec;
 
@@ -443,19 +218,35 @@ public:
         // ---- Other -----
         this->simu_start_time = std::chrono::system_clock::now();
 
-        this->simu_speed_rate = simu_speed_rate;
+        this->simu_speed_rate = speed_rate;
+
+        // ---- Callback functions ----
+
+        // Update Dynamics
+        int32_t update_dynamics_period_ms = int32_t(simu_timestep / this->simu_speed_rate * 1000);
+        this->update_dynamics_timer = this->create_wall_timer(
+            std::chrono::milliseconds(update_dynamics_period_ms),
+            std::bind(&SpaceStationPhysics::update_dynamics_callback, this)
+        );
 
         // Publish period [milli second]
-        int32_t ros2_publish_period_ms = int32_t(simu_timestep / this->simu_speed_rate * 1000);
-        this->timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(ros2_publish_period_ms),
-            std::bind(&SpaceStationPhysics::publish_value, this)
+        int32_t publish_period_ms = int32_t(pulish_period / this->simu_speed_rate * 1000);
+        this->publish_value_timer = this->create_wall_timer(
+            std::chrono::milliseconds(publish_period_ms),
+            std::bind(&SpaceStationPhysics::publish_value_callback, this)
         );
 
         // ---- Publishers ----
         this->publisher_t_ = this->create_publisher<std_msgs::msg::Float64>("t", 10);
         this->publisher_generated_power_ = this->create_publisher<std_msgs::msg::Float64>("generated_power", 10);
         this->publisher_soc_ = this->create_publisher<std_msgs::msg::Float64>("soc", 10);
+
+        // -------- Output log for check --------
+        std::cout << "Dynamics timestep (as simulation time): " << simu_timestep << "[s]" << std::endl;
+        std::cout << "Publish period (as simulation time): " << pulish_period << "[s]" << std::endl;
+        std::cout << "Simulation speed rate: " << this->simu_speed_rate << std::setprecision(6) << "x" << std::endl;
+        std::cout << "Dynamics timestep (as real time): " << double(update_dynamics_period_ms)/1000 << std::setprecision(6) << "[s]" << std::endl;
+        std::cout << "Publish period (as real time): " << double(publish_period_ms)/1000 << std::setprecision(6) << "[s]" << std::endl;
     }
     
     void update(double new_t) {
@@ -526,14 +317,18 @@ public:
         return;
     }
 
-    void publish_value() {
-        // Get current time
+    // 
+    void update_dynamics_callback(){
+        
+        // ---- Get current time ----
         std::chrono::system_clock::time_point simu_cur_time = std::chrono::system_clock::now();
         double elapsed_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(simu_cur_time - this->simu_start_time).count();
         double simu_time = elapsed_time_ms / 1000 * this->simu_speed_rate;
 
         this->update(simu_time);
+    }
 
+    void publish_value_callback() {
         // -------- Publish --------
 
         // ---- Convert ---- 
@@ -603,6 +398,46 @@ public:
     double get_battery_soc() const {
         return this->cur_battery_amount / this->full_battery_amount;
     }
+    
+public:
+
+    SpaceStationPhysics() : Node("demo_sarj_power_generation")
+    {
+        // -------- Declare parameters and set default value --------
+        this->declare_parameter<double>("ss_altitude", 400 * 1e3);
+        this->declare_parameter<double>("ss_raan", deg2rad(10.0));
+        this->declare_parameter<double>("ss_inclination", deg2rad(20.0));
+
+        this->declare_parameter<std::vector<double>>("ss_init_euler_angle", {0.0, 0.0, 0.0});
+        this->declare_parameter<std::vector<double>>("ss_init_w_vec", {0.0, 0.02, 0.0});
+
+        this->declare_parameter<double>("simu_timestep", 10);
+        this->declare_parameter<double>("publish_period", 100);
+        this->declare_parameter<double>("speed_rate", 10);
+
+        // -------- Get parameters --------
+        double ss_altitude = this->get_parameter("ss_altitude").as_double();
+        double ss_raan = this->get_parameter("ss_raan").as_double();
+        double ss_inclination = this->get_parameter("ss_inclination").as_double();
+
+        std::vector<double> temp_ss_init_euler_vec = this->get_parameter("ss_init_euler_angle").as_double_array();
+        std::vector<double> temp_ss_init_w_vec = this->get_parameter("ss_init_w_vec").as_double_array();
+        
+        double simu_timestep = this->get_parameter("simu_timestep").as_double();
+        double publish_period = this->get_parameter("publish_period").as_double();
+        double speed_rate = this->get_parameter("speed_rate").as_double();
+
+        // -------- Convert --------
+        Eigen::Vector3d ss_init_euler_vec = EigenUtil::from_std_vector(temp_ss_init_euler_vec);
+        Eigen::Vector3d ss_init_w_vec = EigenUtil::from_std_vector(temp_ss_init_w_vec);
+        
+        this->initialize(
+            ss_altitude, ss_raan, ss_inclination,
+            ss_init_euler_vec, ss_init_w_vec,
+            simu_timestep, publish_period, speed_rate
+        );
+    }
+
 };
 
 
