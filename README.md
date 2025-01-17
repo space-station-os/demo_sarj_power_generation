@@ -32,7 +32,7 @@ Space station parameters:
 
 Simulation parameters:
 - simu_timestep: timestep of simulation [s]
-- simu_speed_rate: rate of simulation
+- speed_rate: rate of simulation
 
 These parameters can be set by like:
 ```
