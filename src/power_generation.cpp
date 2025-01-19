@@ -2,19 +2,24 @@
 #include <Eigen/Dense>
 #include <cmath>
 #include <vector>
-#include<iostream>
-#include<fstream>
-#include<string>
-#include<map>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <map>
 #include <iomanip>
-#include<chrono>
+#include <chrono>
 
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/float64.hpp>
+#include <std_msgs/msg/int32.hpp>
+#include <geometry_msgs/msg/quaternion.hpp>
+#include "geometry_msgs/msg/vector3.hpp"
 
 #include "eigen_util.hpp"
 #include "rotation.hpp"
 #include "frame_transformer.hpp"
+#include "topic_name.hpp"
+#include "space_station_design.hpp"
 
 
 constexpr double PI = 3.141592653589793;
@@ -115,8 +120,12 @@ private:
     // Consumed power by other subsystem [W]
     double ss_power_consumption;
 
-    // 
-    Eigen::Vector3d ss_sap_basic_normal_vec = Eigen::Vector3d(0.0, 0.0, -1.0);
+    // Space Station is in shade of the Earth or not
+    bool ss_in_sunlight;
+
+    // SARJ rotation axis & SAP normal vector (normalized)
+    Eigen::Vector3d sarj_rotation_axis_vec = SpaceStationDesign::SARJ_ROTATION_AXIS;
+    Eigen::Vector3d ss_sap_basic_normal_vec = SpaceStationDesign::SAP_BASE_NORMAL_VEC;
     // Solar array rotary joint angle [rad]
     double sarj_angle;
 
@@ -129,6 +138,13 @@ private:
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_t_;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_generated_power_;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_soc_;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_sarj_angle;
+    rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr publisher_ss_in_sunlight;
+    rclcpp::Publisher<geometry_msgs::msg::Quaternion>::SharedPtr publisher_ss_attitude;
+    rclcpp::Publisher<geometry_msgs::msg::Vector3>::SharedPtr publisher_sun_direction_ssbf;
+
+    // ---- Subscriptions ----
+    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr subscription_sarj_angle;
 
     rclcpp::TimerBase::SharedPtr update_dynamics_timer;
     rclcpp::TimerBase::SharedPtr publish_value_timer;
@@ -237,9 +253,19 @@ private:
         );
 
         // ---- Publishers ----
-        this->publisher_t_ = this->create_publisher<std_msgs::msg::Float64>("t", 10);
-        this->publisher_generated_power_ = this->create_publisher<std_msgs::msg::Float64>("generated_power", 10);
-        this->publisher_soc_ = this->create_publisher<std_msgs::msg::Float64>("soc", 10);
+        this->publisher_t_ = this->create_publisher<std_msgs::msg::Float64>(TopicName::simu_time, 10);
+        this->publisher_generated_power_ = this->create_publisher<std_msgs::msg::Float64>(TopicName::generated_power, 10);
+        this->publisher_soc_ = this->create_publisher<std_msgs::msg::Float64>(TopicName::soc, 10);
+        this->publisher_sarj_angle = this->create_publisher<std_msgs::msg::Float64>(TopicName::sarj_angle, 10);
+        this->publisher_ss_in_sunlight = this->create_publisher<std_msgs::msg::Int32>(TopicName::ss_in_sunlight, 10);
+        this->publisher_ss_attitude = this->create_publisher<geometry_msgs::msg::Quaternion>(TopicName::ss_attitude, 10);
+        this->publisher_sun_direction_ssbf = this->create_publisher<geometry_msgs::msg::Vector3>(TopicName::sun_direction_ssbf, 10);
+
+        // ---- Subscriptions ----
+        this->subscription_sarj_angle = this->create_subscription<std_msgs::msg::Float64>(
+            TopicName::target_sarj_angle_value, 10,
+            std::bind(&SpaceStationPhysics::sub_sarj_angle_callback, this, std::placeholders::_1)
+            );
 
         // -------- Output log for check --------
         std::cout << "Dynamics timestep (as simulation time): " << simu_timestep << "[s]" << std::endl;
@@ -268,7 +294,8 @@ private:
         this->ss_pos_vec = this->calc_ss_pos_vec(this->t);
 
         // ---- Attitude ----
-        this->ss_quaternion_vec = update_quaternion(this->ss_quaternion_vec, this->ss_w_vec, dt);
+        // Update quaternion and normalize (if don't, norm becomes not 1)
+        this->ss_quaternion_vec = update_quaternion(this->ss_quaternion_vec, this->ss_w_vec, dt).normalized();
         Eigen::Matrix3d ss_rot_mat = Rotation::quat2dcm(this->ss_quaternion_vec);
 
         // Frame transformer of SCI - ECI
@@ -285,11 +312,11 @@ private:
         double d1 = old_normalized_ss_pos_sci_vec.dot(-old_earth_pos_vec);
         double d2 = std::pow(old_earth_pos_vec.norm(), 2) - EARTH_RADIUS*EARTH_RADIUS;
         double discriminant = d1*d1 - d2;
-        bool ss_in_shade = false;
+        this->ss_in_sunlight = true;
         if (0 < discriminant){
             double t_posi = -d1 + std::sqrt(discriminant);
             if (t_posi < old_ss_pos_sci_vec.norm()){
-                ss_in_shade = true;
+                this->ss_in_sunlight = false;
             }
         }
 
@@ -298,11 +325,11 @@ private:
 
         double cos_theta = old_sap_normal_vec.dot(old_sun_direction_vec.normalized());
 
-        if (ss_in_shade){
-            this->cur_generated_power = 0.0;
+        if (this->ss_in_sunlight){
+            this->cur_generated_power = (cos_theta > 0) ? this->max_generated_power * cos_theta : 0.0;
         }
         else{
-            this->cur_generated_power = (cos_theta > 0) ? this->max_generated_power * cos_theta : 0.0;
+            this->cur_generated_power = 0.0;
         }
 
         this->cur_battery_amount -= this->ss_power_consumption * dt;
@@ -335,10 +362,25 @@ private:
         auto message_t = std_msgs::msg::Float64();
         auto message_cur_generated_power = std_msgs::msg::Float64();
         auto message_soc = std_msgs::msg::Float64();
+        auto message_sarj_angle = std_msgs::msg::Float64();
+        auto message_ss_in_sunlight = std_msgs::msg::Int32();
+        auto message_ss_attitude = geometry_msgs::msg::Quaternion();
+        auto message_sun_direction_ssbf = geometry_msgs::msg::Vector3();
 
         message_t.data = this->t;
         message_cur_generated_power.data = this->cur_generated_power;
         message_soc.data = this->cur_battery_amount;
+        message_sarj_angle.data = this->sarj_angle;
+        message_ss_in_sunlight.data = this->ss_in_sunlight;
+        message_ss_attitude.x = this->ss_quaternion_vec[0];
+        message_ss_attitude.y = this->ss_quaternion_vec[1];
+        message_ss_attitude.z = this->ss_quaternion_vec[2];
+        message_ss_attitude.w = this->ss_quaternion_vec[3];
+
+        Eigen::Vector3d sun_direction_ssbf_vec = this->get_sun_pos_at_ss_vec();
+        message_sun_direction_ssbf.x = sun_direction_ssbf_vec[0];
+        message_sun_direction_ssbf.y = sun_direction_ssbf_vec[1];
+        message_sun_direction_ssbf.z = sun_direction_ssbf_vec[2];
 
         // ---- convert time ----
         int32_t t_int32 = int32_t(this->t);
@@ -348,23 +390,27 @@ private:
         int32_t t_hour = (t_int32 / 60 / 60) % 24;
         //int32_t t_day = (t_int32 / 60 / 60 / 24) % 24;
 
-        RCLCPP_INFO(this->get_logger(), "Publish: t=%02d:%02d:%02d.%03d, generated_power=%3.2f[W], battery_amount=%3.2f[kWh]", t_hour, t_min, t_sec, t_millisec, this->cur_generated_power, this->cur_battery_amount/1000);
+        RCLCPP_INFO(this->get_logger(), "t=%02d:%02d:%02d.%03d, generated_power=%3.2f[W], battery_amount=%3.2f[kWh]", t_hour, t_min, t_sec, t_millisec, this->cur_generated_power, this->cur_battery_amount/1000);
 
         // ---- Publish ----
         this->publisher_t_->publish(message_t);
         this->publisher_generated_power_->publish(message_cur_generated_power);
         this->publisher_soc_->publish(message_soc);
+        this->publisher_sarj_angle->publish(message_sarj_angle);
+        this->publisher_ss_in_sunlight->publish(message_ss_in_sunlight);
+        this->publisher_ss_attitude->publish(message_ss_attitude);
+        this->publisher_sun_direction_ssbf->publish(message_sun_direction_ssbf);
+    }
+
+    void sub_sarj_angle_callback(const std_msgs::msg::Float64::SharedPtr msg){
+        double target_sarj_agnle = msg->data;
+        RCLCPP_INFO(this->get_logger(), "Subscribe: target_sarj_agnle=%f[rad]", target_sarj_agnle);
+        this->set_sarj_angle(target_sarj_agnle);
     }
 
     Eigen::Vector3d calc_ss_sap_normal_vec() const {
-        //
-
-        Eigen::Matrix3d sarj_rot_mat = Eigen::Matrix3d::Identity();
-        sarj_rot_mat.coeffRef(0, 0) = std::cos(this->sarj_angle);
-        sarj_rot_mat.coeffRef(0, 2) = std::sin(this->sarj_angle);
-        sarj_rot_mat.coeffRef(2, 0) = -std::sin(this->sarj_angle);
-        sarj_rot_mat.coeffRef(2, 2) = std::cos(this->sarj_angle);
-
+        // -------- Calculate normal vector of SAP in SSBF --------
+        Eigen::Matrix3d sarj_rot_mat = Rotation::rodrigues_rotation_matrix(this->sarj_rotation_axis_vec, this->sarj_angle);
         Eigen::Vector3d ss_sap_normal_vec = sarj_rot_mat * this->ss_sap_basic_normal_vec;
         return ss_sap_normal_vec;
     }
@@ -373,10 +419,6 @@ private:
 
     inline double get_time() const {
         return this->t;
-    }
-
-    Eigen::Vector3d get_ss_sap_normal_vec() const {
-        return this->ss_sap_normal_vec;
     }
 
     void set_sarj_angle(double sarj_angle) {

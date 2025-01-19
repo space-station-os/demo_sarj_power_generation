@@ -56,6 +56,7 @@ namespace Rotation {
         return dcm_mat;
     }
 
+
     Eigen::Vector4d dcm2quat(const Eigen::Matrix3d& dcm) {
 
         std::vector<double> temp_q_vec{
@@ -69,7 +70,6 @@ namespace Rotation {
 
         std::vector<double>::iterator max_it = std::max_element(temp_q_vec.begin(), temp_q_vec.end());
         size_t max_idx = std::distance(temp_q_vec.begin(), max_it);
-
 
         if (max_idx == 0) {
             quat_vec.coeffRef(1) = dcm.coeff(0, 1) + dcm.coeff(1, 0);
@@ -97,4 +97,10 @@ namespace Rotation {
 
         return quat_vec;
     }
+
+
+    Eigen::Matrix3d rodrigues_rotation_matrix(Eigen::Vector3d axis_vec, double angle){
+        return Eigen::AngleAxis<double>(angle, axis_vec).matrix();
+    }
+
 };

@@ -28,18 +28,27 @@ find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 
-add_executable(demo_sarj_power_generation src/demo_sarj_power_generation.cpp)
+add_executable(power_generation src/power_generation.cpp)
+add_executable(select_sarj_angle src/select_sarj_angle.cpp)
 ament_target_dependencies(
-  demo_sarj_power_generation 
+  power_generation 
+  rclcpp 
+  geometry_msgs
+  std_msgs
+  )
+ament_target_dependencies(
+  select_sarj_angle 
   rclcpp 
   geometry_msgs
   std_msgs
   )
 
 install(TARGETS
-demo_sarj_power_generation
+  power_generation
+  select_sarj_angle
   DESTINATION lib/${PROJECT_NAME})
 
-target_include_directories(demo_sarj_power_generation PRIVATE ${EIGEN3_INCLUDE_DIR})
+target_include_directories(power_generation PRIVATE ${EIGEN3_INCLUDE_DIR})
+target_include_directories(select_sarj_angle PRIVATE ${EIGEN3_INCLUDE_DIR})
 
 ament_package()
