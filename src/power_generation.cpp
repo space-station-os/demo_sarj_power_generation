@@ -52,7 +52,7 @@ Eigen::Vector4d quaternion_diff_equ(const Eigen::Vector4d& q_vec, const Eigen::V
 }
 
 
-Eigen::Vector4d update_quaternion(Eigen::Vector4d& q_vec, Eigen::Vector3d& w_vec, double dt) {
+Eigen::Vector4d update_quaternion(const Eigen::Vector4d& q_vec, const Eigen::Vector3d& w_vec, double dt) {
     // Runge–Kutta method
     auto dt_h = dt / 2;
 
@@ -485,43 +485,43 @@ private:
     double get_battery_soc() const {
         return this->cur_battery_amount / this->full_battery_amount;
     }
-    
+
+    // -------- Declare and get parameter for each type--------
+
+    double declare_and_get_double_parameter(std::string param_name, double default_val){
+    this->declare_parameter<double>(param_name, default_val);
+    return this->get_parameter(param_name).as_double();
+    }
+
+    int32_t declare_and_get_int32_parameter(std::string param_name, int32_t default_val){
+        this->declare_parameter<int32_t>(param_name, default_val);
+        return static_cast<int32_t>(this->get_parameter(param_name).as_int());
+    }
+
+    Eigen::Vector3d declare_and_get_parameter(std::string param_name, std::vector<double> default_val){
+        this->declare_parameter<std::vector<double>>(param_name, default_val);
+        std::vector<double> temp_vec = this->get_parameter(param_name).as_double_array();
+        return EigenUtil::from_std_vector(temp_vec);
+    }
+
 public:
 
     SpaceStationPhysics() : Node("demo_sarj_power_generation")
     {
         // -------- Declare parameters and set default value --------
-        this->declare_parameter<double>("ss_altitude", 400 * 1e3);
-        this->declare_parameter<double>("ss_raan", deg2rad(10.0));
-        this->declare_parameter<double>("ss_inclination", deg2rad(20.0));
+        double ss_altitude = this->declare_and_get_double_parameter("ss_altitude", 400 * 1e3);
+        double ss_raan = this->declare_and_get_double_parameter("ss_raan", deg2rad(10.0));
+        double ss_inclination = this->declare_and_get_double_parameter("ss_inclination", deg2rad(20.0));
 
-        this->declare_parameter<int32_t>("attitude_control_plan", 0);
+        int32_t attitude_control_plan = this->declare_and_get_int32_parameter("attitude_control_plan", 0);
 
-        this->declare_parameter<std::vector<double>>("ss_init_euler_angle", {0.0, 0.0, 0.0});
-        this->declare_parameter<std::vector<double>>("ss_init_w_vec", {0.0, 0.02, 0.0});
+        Eigen::Vector3d ss_init_euler_vec = this->declare_and_get_parameter("ss_init_euler_angle", {0.0, 0.0, 0.0});
+        Eigen::Vector3d ss_init_w_vec = this->declare_and_get_parameter("ss_init_w_vec", {0.0, 0.02, 0.0});
 
-        this->declare_parameter<double>("simu_timestep", 10);
-        this->declare_parameter<double>("publish_period", 100);
-        this->declare_parameter<double>("speed_rate", 10);
+        double simu_timestep = this->declare_and_get_double_parameter("simu_timestep", 20.0);
+        double publish_period = this->declare_and_get_double_parameter("publish_period", 20.0);
+        double speed_rate = this->declare_and_get_double_parameter("speed_rate", 200.0);
 
-        // -------- Get parameters --------
-        double ss_altitude = this->get_parameter("ss_altitude").as_double();
-        double ss_raan = this->get_parameter("ss_raan").as_double();
-        double ss_inclination = this->get_parameter("ss_inclination").as_double();
-
-        int32_t attitude_control_plan = int32_t(this->get_parameter("attitude_control_plan").as_int());
-
-        std::vector<double> temp_ss_init_euler_vec = this->get_parameter("ss_init_euler_angle").as_double_array();
-        std::vector<double> temp_ss_init_w_vec = this->get_parameter("ss_init_w_vec").as_double_array();
-        
-        double simu_timestep = this->get_parameter("simu_timestep").as_double();
-        double publish_period = this->get_parameter("publish_period").as_double();
-        double speed_rate = this->get_parameter("speed_rate").as_double();
-
-        // -------- Convert --------
-        Eigen::Vector3d ss_init_euler_vec = EigenUtil::from_std_vector(temp_ss_init_euler_vec);
-        Eigen::Vector3d ss_init_w_vec = EigenUtil::from_std_vector(temp_ss_init_w_vec);
-        
         this->initialize(
             ss_altitude, ss_raan, ss_inclination,
             attitude_control_plan,
