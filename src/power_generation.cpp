@@ -41,7 +41,8 @@ Eigen::Vector4d quaternion_diff_equ(const Eigen::Vector4d& q_vec, const Eigen::V
     auto y = w_vec[2];
 
     Eigen::Matrix4d sqew_mat;
-    sqew_mat << 0, +y, -p, +r,
+    sqew_mat << 
+        0, +y, -p, +r,
         -y, 0, +r, +p,
         +p, -r, 0, +y,
         -r, -p, -y, 0;
@@ -129,15 +130,18 @@ private:
     // Solar array rotary joint angle [rad]
     double sarj_angle;
 
+    // ---- Control ----
+    int32_t attitude_control_plan;
+
     // Time of start simulation
     std::chrono::system_clock::time_point simu_start_time;
 
     double simu_speed_rate ;
 
     // ---- Publishers ----
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_t_;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_generated_power_;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_soc_;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_t;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_generated_power;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_soc;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_sarj_angle;
     rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr publisher_ss_in_sunlight;
     rclcpp::Publisher<geometry_msgs::msg::Quaternion>::SharedPtr publisher_ss_attitude;
@@ -176,8 +180,22 @@ private:
         return this->ss_plane_inertia_ft.get_global_pos(ss_pos_plane_vec);
     }
 
+    Eigen::Vector3d calc_ss_vel_vec(double t) const {
+        // -------- Calculate SS velocity vector @ECI at t --------
+        // Current SS phase at ECI
+        double cur_phase = this->earth_init_phase + this->ss_revolution_w * t;
+
+        Eigen::Vector3d ss_vel_plane_vec(
+            -std::sin(cur_phase) * this->ss_motion_radius,
+            std::cos(cur_phase) * this->ss_motion_radius,
+            0.0
+        );  
+        return this->ss_plane_inertia_ft.get_global_pos(ss_vel_plane_vec);
+    }
+
     void initialize(
         double ss_altitude, double ss_raan, double ss_inclination,
+        int32_t attitude_control_plan,
         const Eigen::Vector3d& ss_init_euler_vec,
         const Eigen::Vector3d& ss_init_w_vec,
         double simu_timestep, double pulish_period, double speed_rate
@@ -203,6 +221,12 @@ private:
         this->ss_plane_inertia_ft = FrameTransformer(
             ss_plane_inertia_rot_mat.transpose(), Eigen::Vector3d::Zero()
         );
+
+        // -------- Control --------
+        // attitude_control_plan
+        // - 0: No control
+        // - 1: LVLH
+        this->attitude_control_plan = attitude_control_plan;
 
         // -------- Initialize time-varying parameters --------
         this->t = 0.0;
@@ -253,9 +277,9 @@ private:
         );
 
         // ---- Publishers ----
-        this->publisher_t_ = this->create_publisher<std_msgs::msg::Float64>(TopicName::simu_time, 10);
-        this->publisher_generated_power_ = this->create_publisher<std_msgs::msg::Float64>(TopicName::generated_power, 10);
-        this->publisher_soc_ = this->create_publisher<std_msgs::msg::Float64>(TopicName::soc, 10);
+        this->publisher_t = this->create_publisher<std_msgs::msg::Float64>(TopicName::simu_time, 10);
+        this->publisher_generated_power = this->create_publisher<std_msgs::msg::Float64>(TopicName::generated_power, 10);
+        this->publisher_soc = this->create_publisher<std_msgs::msg::Float64>(TopicName::soc, 10);
         this->publisher_sarj_angle = this->create_publisher<std_msgs::msg::Float64>(TopicName::sarj_angle, 10);
         this->publisher_ss_in_sunlight = this->create_publisher<std_msgs::msg::Int32>(TopicName::ss_in_sunlight, 10);
         this->publisher_ss_attitude = this->create_publisher<geometry_msgs::msg::Quaternion>(TopicName::ss_attitude, 10);
@@ -294,10 +318,31 @@ private:
         this->ss_pos_vec = this->calc_ss_pos_vec(this->t);
 
         // ---- Attitude ----
-        // Update quaternion and normalize (if don't, norm becomes not 1)
-        this->ss_quaternion_vec = update_quaternion(this->ss_quaternion_vec, this->ss_w_vec, dt).normalized();
-        Eigen::Matrix3d ss_rot_mat = Rotation::quat2dcm(this->ss_quaternion_vec);
+        Eigen::Matrix3d ss_rot_mat;
 
+        if (this->attitude_control_plan == 0)
+        {
+            // --- No control ---
+            // Update quaternion and normalize (if don't, norm becomes not 1)
+            this->ss_quaternion_vec = update_quaternion(this->ss_quaternion_vec, this->ss_w_vec, dt).normalized();
+            ss_rot_mat = Rotation::quat2dcm(this->ss_quaternion_vec);
+        }
+        else if (this->attitude_control_plan == 1)
+        {
+            // --- LVLH ---
+            // X-basis is velocity vector
+            Eigen::Vector3d rot_x_vec = this->calc_ss_vel_vec(this->t).normalized();
+            // Z-basis
+            Eigen::Vector3d rot_z_vec = -old_ss_pos_vec.normalized();
+            // Y-basis
+            Eigen::Vector3d rot_y_vec = rot_x_vec.cross(rot_z_vec);
+
+            ss_rot_mat <<
+                rot_x_vec[0], rot_y_vec[0], rot_z_vec[0],
+                rot_x_vec[1], rot_y_vec[1], rot_z_vec[1],
+                rot_x_vec[2], rot_y_vec[2], rot_z_vec[2];
+        }
+        
         // Frame transformer of SCI - ECI
         this->sci_eci_ft.update_ori_vec(this->earth_pos_vec);
         // Frame transformer of ECI - BF
@@ -393,9 +438,9 @@ private:
         RCLCPP_INFO(this->get_logger(), "t=%02d:%02d:%02d.%03d, generated_power=%3.2f[W], battery_amount=%3.2f[kWh]", t_hour, t_min, t_sec, t_millisec, this->cur_generated_power, this->cur_battery_amount/1000);
 
         // ---- Publish ----
-        this->publisher_t_->publish(message_t);
-        this->publisher_generated_power_->publish(message_cur_generated_power);
-        this->publisher_soc_->publish(message_soc);
+        this->publisher_t->publish(message_t);
+        this->publisher_generated_power->publish(message_cur_generated_power);
+        this->publisher_soc->publish(message_soc);
         this->publisher_sarj_angle->publish(message_sarj_angle);
         this->publisher_ss_in_sunlight->publish(message_ss_in_sunlight);
         this->publisher_ss_attitude->publish(message_ss_attitude);
@@ -404,7 +449,7 @@ private:
 
     void sub_sarj_angle_callback(const std_msgs::msg::Float64::SharedPtr msg){
         double target_sarj_agnle = msg->data;
-        RCLCPP_INFO(this->get_logger(), "Subscribe: target_sarj_agnle=%f[rad]", target_sarj_agnle);
+        RCLCPP_INFO(this->get_logger(), "Subscribe: target_sarj_agnle=%4.2f[deg]", rad2deg(target_sarj_agnle));
         this->set_sarj_angle(target_sarj_agnle);
     }
 
@@ -450,6 +495,8 @@ public:
         this->declare_parameter<double>("ss_raan", deg2rad(10.0));
         this->declare_parameter<double>("ss_inclination", deg2rad(20.0));
 
+        this->declare_parameter<int32_t>("attitude_control_plan", 0);
+
         this->declare_parameter<std::vector<double>>("ss_init_euler_angle", {0.0, 0.0, 0.0});
         this->declare_parameter<std::vector<double>>("ss_init_w_vec", {0.0, 0.02, 0.0});
 
@@ -461,6 +508,8 @@ public:
         double ss_altitude = this->get_parameter("ss_altitude").as_double();
         double ss_raan = this->get_parameter("ss_raan").as_double();
         double ss_inclination = this->get_parameter("ss_inclination").as_double();
+
+        int32_t attitude_control_plan = int32_t(this->get_parameter("attitude_control_plan").as_int());
 
         std::vector<double> temp_ss_init_euler_vec = this->get_parameter("ss_init_euler_angle").as_double_array();
         std::vector<double> temp_ss_init_w_vec = this->get_parameter("ss_init_w_vec").as_double_array();
@@ -475,11 +524,11 @@ public:
         
         this->initialize(
             ss_altitude, ss_raan, ss_inclination,
+            attitude_control_plan,
             ss_init_euler_vec, ss_init_w_vec,
             simu_timestep, publish_period, speed_rate
         );
     }
-
 };
 
 

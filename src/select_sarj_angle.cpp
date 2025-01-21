@@ -7,7 +7,6 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/float64.hpp>
-//#include <geometry_msgs/msg/quaternion.hpp>
 #include "geometry_msgs/msg/vector3.hpp"
 
 #include "eigen_util.hpp"
@@ -63,11 +62,13 @@ private:
             theta = -theta;
         }
 
-        Eigen::Matrix3d sarj_rot_mat = Rotation::rodrigues_rotation_matrix(this->sarj_rotation_axis_vec, theta);
-        Eigen::Vector3d ss_sap_normal_vec = sarj_rot_mat * SpaceStationDesign::SAP_BASE_NORMAL_VEC;
+        // --- for debug ---
+        // Eigen::Matrix3d sarj_rot_mat = Rotation::rodrigues_rotation_matrix(this->sarj_rotation_axis_vec, theta);
+        // Eigen::Vector3d ss_sap_normal_vec = sarj_rot_mat * SpaceStationDesign::SAP_BASE_NORMAL_VEC;
 
-        RCLCPP_INFO(this->get_logger(), "Optimal SARJ angle(deg):%3.2f", rad2deg(theta));
+        RCLCPP_INFO(this->get_logger(), "Optimal SARJ angle=%4.2f[deg]", rad2deg(theta));
 
+        // --- Publish ---
         auto output_msg = std_msgs::msg::Float64();
         output_msg.data = theta;
         this->publisher_->publish(output_msg);
