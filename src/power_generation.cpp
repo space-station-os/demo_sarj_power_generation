@@ -344,10 +344,10 @@ private:
         }
         
         // Frame transformer of SCI - ECI
-        this->sci_eci_ft.update_ori_vec(this->earth_pos_vec);
+        this->sci_eci_ft.update_origin_vec(this->earth_pos_vec);
         // Frame transformer of ECI - BF
-        this->eci_ssbf_ft.update_rot_mat(ss_rot_mat.transpose());
-        this->eci_ssbf_ft.update_ori_vec(this->ss_pos_vec);
+        this->eci_ssbf_ft.update_basis_mat(ss_rot_mat.transpose());
+        this->eci_ssbf_ft.update_origin_vec(this->ss_pos_vec);
 
         // -------- Power --------
 
@@ -475,10 +475,10 @@ private:
         Eigen::Vector3d sun_pos_eci_vec = this->sci_eci_ft.get_local_pos(Eigen::Vector3d::Zero());
         // Position vector of the Sun seen from the origin of BF-frame.
         // Each axis direction is same as ECI.
-        Eigen::Vector3d sun_pos_ss_center_vec = sun_pos_eci_vec - this->eci_ssbf_ft.get_local_frame_ori_vec();
+        Eigen::Vector3d sun_pos_ss_center_vec = sun_pos_eci_vec - this->eci_ssbf_ft.get_local_frame_origin_vec();
         // Normalization (if don't normalize, value becomes bad when rotation matrix is multiplied.)
         Eigen::Vector3d sun_pos_ss_center_normal_vec = sun_pos_ss_center_vec / sun_pos_ss_center_vec.norm();
-        Eigen::Vector3d sun_pos_ssbf_vec = this->eci_ssbf_ft.get_inv_local_frame_rot_mat() * sun_pos_ss_center_normal_vec;
+        Eigen::Vector3d sun_pos_ssbf_vec = this->eci_ssbf_ft.get_inv_local_frame_basis_mat() * sun_pos_ss_center_normal_vec;
         return sun_pos_ssbf_vec;
     }
 
