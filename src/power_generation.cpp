@@ -506,7 +506,7 @@ private:
 
 public:
 
-    SpaceStationPhysics() : Node("demo_sarj_power_generation")
+    SpaceStationPhysics() : Node("power_generation")
     {
         // -------- Declare parameters and set default value --------
         double ss_altitude = this->declare_and_get_double_parameter("ss_altitude", 400 * 1e3);
