@@ -1,5 +1,41 @@
 # Space Station Power Generation and SARJ Control Demo
 
+## Installation
+ - Clone the source
+```
+$ cd /path/to/ros2_ws
+$ mkdir src
+$ cd src
+$ git clone https://github.com/space-station-os/demo_sarj_power_generation.git
+```
+ - Compile the source
+```
+$ cd /path/to/ros2_ws
+$ colcon build --symlink-install
+$ source install/setup.bash
+```
+
+## Run
+1. Terminal 1: SARJ angle optimization node
+```
+$ ros2 run demo_sarj_power_generation select_sarj_angle
+```
+2. Terminal 2: Dynamics & power generation node
+```
+$ ros2 run demo_sarj_power_generation power_generation
+```
+3. Terminal 3: Record
+```
+$ source rosbag_record.sh
+```
+
+## Check Result
+Simulation result is recorded as a rosbag file in the directory "rosbag2_out".
+You can check it by
+```
+$ rqt_bag rosbag2_out/rosbag2_YYYY-MM-DD_hh_mm_ss/
+```
+
 ## Command and published output
 ```
 $ cd space_station_os_dev/src/space_station_power_demo
