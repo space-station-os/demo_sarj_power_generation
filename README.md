@@ -121,10 +121,10 @@ ros2 run demo_sarj_power_generation power_generation --ros-args -p simu_timestep
 ## Example Output
 If runing only power_generation node, SARJ angle is always zero. So SAP cannnot generate power efficiently.
 This plot shows change of battery SoC.  
-![image](https://github.com/user-attachments/assets/35645633-b69d-4ec3-a96a-98fb5a5b8d2d)
-
-On the other hand, if running select_sarj_angle node too, optimal SARJ angle is set and SAP can generate power efficienty.
 ![image](https://github.com/user-attachments/assets/efe0787b-2ae6-4ea7-88ba-3971d389880f)
+  
+On the other hand, if running select_sarj_angle node too, optimal SARJ angle is set and SAP can generate power efficienty.
+![image](https://github.com/user-attachments/assets/35645633-b69d-4ec3-a96a-98fb5a5b8d2d)
 
 ## To-do
 - Make 3D space station model as URDF and show it by rviz2
