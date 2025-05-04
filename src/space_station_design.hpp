@@ -1,6 +1,9 @@
 
-#include <Eigen/Dense>
+#ifndef __SPACE_STATION_DESIGN__
+#define __SPACE_STATION_DESIGN__
 
+
+#include <Eigen/Dense>
 
 namespace SpaceStationDesign
 {
@@ -9,3 +12,5 @@ namespace SpaceStationDesign
     const Eigen::Vector3d SAP_BASE_NORMAL_VEC = Eigen::Vector3d(0.0, 0.0, -1.0).normalized();
 
 } // namespace SpaceStationDesig
+
+#endif

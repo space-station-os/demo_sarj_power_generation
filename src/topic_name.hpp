@@ -12,5 +12,8 @@ namespace TopicName
     std::string ss_attitude = "ss_attitude";
     std::string sun_direction_ssbf = "sun_direction_ssbf";
     std::string target_sarj_angle_value = "target_sarj_angle";
+    std::string ss_position_eci = "ss_position_eci";
+    std::string ss_velocity_eci = "ss_velocity_eci";
+    std::string ss_acceleration_eci = "ss_acceleration_eci";
 
 } // namespace TopicName
