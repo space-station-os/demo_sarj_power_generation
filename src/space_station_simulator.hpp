@@ -13,6 +13,8 @@
 #include <vector>
 
 #include "space_station_design.hpp"
+#include "space_station_dynamics_controller.hpp"
+#include "rotation.hpp"
 
 
 namespace Math {
@@ -23,109 +25,6 @@ namespace Math {
     inline constexpr double rad2deg(double rad) { return rad / Math::PI * 180.0; }
 
 }
-
-
-namespace Rotation {
-
-    Eigen::Matrix3d quat2dcm(const Eigen::Vector4d& quat_vec) {
-
-        const Eigen::Vector4d& q = quat_vec;
-        auto qs = quat_vec.array() * quat_vec.array();
-
-        Eigen::Matrix3d dcm_mat;
-
-        dcm_mat.coeffRef(0, 0) = qs(0) - qs(1) - qs(2) + qs(3);
-        dcm_mat.coeffRef(0, 1) = 2 * (q(0) * q(1) + q(2) * q(3));
-        dcm_mat.coeffRef(0, 2) = 2 * (q(0) * q(2) - q(1) * q(3));
-
-        dcm_mat.coeffRef(1, 0) = 2 * (q(0) * q(1) - q(2) * q(3));
-        dcm_mat.coeffRef(1, 1) = qs(1) - qs(0) - qs(2) + qs(3);
-        dcm_mat.coeffRef(1, 2) = 2 * (q(1) * q(2) + q(0) * q(3));
-
-        dcm_mat.coeffRef(2, 0) = 2 * (q(0) * q(2) + q(1) * q(3));
-        dcm_mat.coeffRef(2, 1) = 2 * (q(1) * q(2) - q(0) * q(3));
-        dcm_mat.coeffRef(2, 2) = qs(2) - qs(0) - qs(1) + qs(3);
-
-        return dcm_mat;
-    }
-
-
-    Eigen::Matrix3d euler2dcm(const Eigen::Vector3d& euler_vec) {
-        auto sin_euler_vec = euler_vec.array().sin();
-        auto cos_euler_vec = euler_vec.array().cos();
-
-        double s0 = sin_euler_vec[0];
-        double s1 = sin_euler_vec[1];
-        double s2 = sin_euler_vec[2];
-        double c0 = cos_euler_vec[0];
-        double c1 = cos_euler_vec[1];
-        double c2 = cos_euler_vec[2];
-
-        Eigen::Matrix3d dcm_mat;
-
-        dcm_mat.coeffRef(0, 0) = c1 * c2;
-        dcm_mat.coeffRef(0, 1) = c1 * s2;
-        dcm_mat.coeffRef(0, 2) = -s1;
-
-        dcm_mat.coeffRef(1, 0) = -c0 * s2 + s0 * s1 * c2;
-        dcm_mat.coeffRef(1, 1) = c0 * c2 + s0 * s1 * s2;
-        dcm_mat.coeffRef(1, 2) = s0 * c1;
-
-        dcm_mat.coeffRef(2, 0) = s0 * s2 + c0 * s1 * c2;
-        dcm_mat.coeffRef(2, 1) = -s0 * c2 + c0 * s1 * s2;
-        dcm_mat.coeffRef(2, 2) = c0 * c1;
-
-        return dcm_mat;
-    }
-
-
-    Eigen::Vector4d dcm2quat(const Eigen::Matrix3d& dcm) {
-
-        std::vector<double> temp_q_vec{
-            std::sqrt(1.0 + dcm.coeff(0, 0) - dcm.coeff(1, 1) - dcm.coeff(2, 2)) / 2.0,
-            std::sqrt(1.0 - dcm.coeff(0, 0) + dcm.coeff(1, 1) - dcm.coeff(2, 2)) / 2.0,
-            std::sqrt(1.0 - dcm.coeff(0, 0) - dcm.coeff(1, 1) + dcm.coeff(2, 2)) / 2.0,
-            std::sqrt(1.0 + dcm.coeff(0, 0) + dcm.coeff(1, 1) + dcm.coeff(2, 2)) / 2.0
-        };
-
-        Eigen::Vector4d quat_vec;
-
-        std::vector<double>::iterator max_it = std::max_element(temp_q_vec.begin(), temp_q_vec.end());
-        size_t max_idx = std::distance(temp_q_vec.begin(), max_it);
-
-        if (max_idx == 0) {
-            quat_vec.coeffRef(1) = dcm.coeff(0, 1) + dcm.coeff(1, 0);
-            quat_vec.coeffRef(2) = dcm.coeff(0, 2) + dcm.coeff(2, 0);
-            quat_vec.coeffRef(3) = dcm.coeff(1, 2) - dcm.coeff(2, 1);
-        }
-        else if (max_idx == 1) {
-            quat_vec.coeffRef(0) = dcm.coeff(0, 1) + dcm.coeff(1, 0);
-            quat_vec.coeffRef(2) = dcm.coeff(2, 1) + dcm.coeff(1, 2);
-            quat_vec.coeffRef(3) = dcm.coeff(2, 0) - dcm.coeff(0, 2);
-        }
-        else if (max_idx == 2) {
-            quat_vec.coeffRef(0) = dcm.coeff(2, 0) + dcm.coeff(0, 2);
-            quat_vec.coeffRef(1) = dcm.coeff(2, 1) + dcm.coeff(1, 2);
-            quat_vec.coeffRef(3) = dcm.coeff(0, 1) - dcm.coeff(1, 0);
-        }
-        else {
-            quat_vec.coeffRef(0) = dcm.coeff(1, 2) - dcm.coeff(2, 1);
-            quat_vec.coeffRef(1) = dcm.coeff(2, 0) - dcm.coeff(0, 2);
-            quat_vec.coeffRef(2) = dcm.coeff(0, 1) - dcm.coeff(1, 0);
-        }
-
-        quat_vec *= (0.25 / temp_q_vec[max_idx]);
-        quat_vec[max_idx] = temp_q_vec[max_idx];
-
-        return quat_vec;
-    }
-
-
-    Eigen::Matrix3d rodrigues_rotation_matrix(Eigen::Vector3d axis_vec, double angle) {
-        return Eigen::AngleAxis<double>(angle, axis_vec).matrix();
-    }
-
-};
 
 
 namespace OrbitLib {
@@ -343,6 +242,15 @@ namespace OrbitLib {
 }
 
 
+namespace EigenUtil {
+
+    double two_vector_angle_rad(const Eigen::Vector3d& a, const Eigen::Vector3d& b) {
+        return std::acos(a.normalized().dot(b.normalized()));
+    }
+
+}
+
+
 namespace SpaceStationSimulator {
 
     void keplerian_to_cartesian(
@@ -513,61 +421,8 @@ namespace SpaceStationSimulator {
             return acc;
         }
 
-        void update_position_velocity(
-            const Eigen::Vector3d& old_pos_vec, const Eigen::Vector3d& old_vel_vec,
-            double dt,
-            Eigen::Vector3d& new_pos_vec, Eigen::Vector3d& new_vel_vec, Eigen::Vector3d& new_acc_vec
-        ) {
-            // ---- Runge–Kutta method ----
-            double dt_h = 0.5 * dt;
-            double dt_six = dt / 6.0;
-
-            // k1
-            Eigen::Vector3d k1_v = this->calc_acceleration_on_leo(old_pos_vec, old_vel_vec);
-            Eigen::Vector3d k1_r = old_vel_vec;
-
-            // k2
-            Eigen::Vector3d pos_k2 = old_pos_vec + dt_h * k1_r;
-            Eigen::Vector3d vel_k2 = old_vel_vec + dt_h * k1_v;
-            Eigen::Vector3d k2_v = this->calc_acceleration_on_leo(pos_k2, vel_k2);
-            Eigen::Vector3d k2_r = vel_k2;
-
-            // k3
-            Eigen::Vector3d pos_k3 = old_pos_vec + dt_h * k2_r;
-            Eigen::Vector3d vel_k3 = old_vel_vec + dt_h * k2_v;
-            Eigen::Vector3d k3_v = this->calc_acceleration_on_leo(pos_k3, vel_k3);
-            Eigen::Vector3d k3_r = vel_k3;
-
-            // k4
-            Eigen::Vector3d pos_k4 = old_pos_vec + dt * k3_r;
-            Eigen::Vector3d vel_k4 = old_vel_vec + dt * k3_v;
-            Eigen::Vector3d k4_v = this->calc_acceleration_on_leo(pos_k4, vel_k4);
-            Eigen::Vector3d k4_r = vel_k4;
-
-            // 合成
-            new_acc_vec = dt_six * (k1_v + 2.0 * k2_v + 2.0 * k3_v + k4_v);
-            new_vel_vec = old_vel_vec + new_acc_vec;
-            new_pos_vec = old_pos_vec + dt_six * (k1_r + 2.0 * k2_r + 2.0 * k3_r + k4_r);
-
-            return;
-        }
-
     };
     
-
-    Eigen::Vector4d update_quaternion(const Eigen::Vector4d& q_vec, const Eigen::Vector3d& w_vec, double dt) {
-        // ---- Runge–Kutta method ----
-        auto dt_h = dt / 2;
-
-        auto k1_vec = quaternion_diff_equ(q_vec, w_vec);
-        auto k2_vec = quaternion_diff_equ(q_vec + k1_vec * dt_h, w_vec);
-        auto k3_vec = quaternion_diff_equ(q_vec + k2_vec * dt_h, w_vec);
-        auto k4_vec = quaternion_diff_equ(q_vec + k3_vec * dt, w_vec);
-        auto next_q_vec = q_vec + (k1_vec + k2_vec + k3_vec + k4_vec) / 6 * dt;
-
-        return next_q_vec;
-    }
-
 
     class FrameTransformer
     {
@@ -617,6 +472,7 @@ namespace SpaceStationSimulator {
     };
 
 
+
     class SpaceStationSimulator
     {
 
@@ -644,10 +500,10 @@ namespace SpaceStationSimulator {
 
         // ---- Parameters of the Earth ----  
 
-        Eigen::Vector3d earth_pos_vec{ Eigen::Vector3d()};
-        Eigen::Vector3d ss_position_eci{ Eigen::Vector3d() };
-        Eigen::Vector3d ss_velocity_eci{ Eigen::Vector3d() };
-        Eigen::Vector3d ss_acceleration_eci{ Eigen::Vector3d() };
+        Eigen::Vector3d earth_pos_vec{ Eigen::Vector3d::Zero()};
+        Eigen::Vector3d ss_position_eci{ Eigen::Vector3d::Zero() };
+        Eigen::Vector3d ss_velocity_eci{ Eigen::Vector3d::Zero() };
+        Eigen::Vector3d ss_acceleration_eci{ Eigen::Vector3d::Zero() };
 
         // Global:SCI, Local:ECI
         FrameTransformer sci_eci_ft{};
@@ -674,14 +530,27 @@ namespace SpaceStationSimulator {
         // Space Station is in shade of the Earth or not
         bool ss_in_sunlight{false};
 
+        space_station_design::SpaceStationDesign ssd = space_station_design::SpaceStationDesign();
+
         // SARJ rotation axis & SAP normal vector (normalized)
-        Eigen::Vector3d sarj_rotation_axis_vec = SpaceStationDesign::SARJ_ROTATION_AXIS;
-        Eigen::Vector3d ss_sap_basic_normal_vec = SpaceStationDesign::SAP_BASE_NORMAL_VEC;
+        Eigen::Vector3d sarj_rotation_axis_vec ;
+        Eigen::Vector3d ss_sap_basic_normal_vec ;
         // Solar array rotary joint angle [rad]
         double sarj_angle{ 0.0 };
 
         // ---- Control ----
         int32_t attitude_control_plan{0};
+
+        SpaceStationDynamicsController ss_controller;
+        double control_kp;
+        double control_ki;
+        double control_kd;
+
+        // thruster firng duty [0.0 ~ 1.0]
+        Eigen::VectorXd thruster_firing_duty;
+
+        // CMG
+        Eigen::VectorXd cmg_gimbal_rate;
 
         Eigen::Vector3d calc_earth_pos_vec(double t) const {
             // -------- Calculate earth position @SCI at t --------
@@ -699,6 +568,22 @@ namespace SpaceStationSimulator {
             Eigen::Matrix3d sarj_rot_mat = Rotation::rodrigues_rotation_matrix(this->sarj_rotation_axis_vec, this->sarj_angle);
             Eigen::Vector3d ss_sap_normal_vec = sarj_rot_mat * this->ss_sap_basic_normal_vec;
             return ss_sap_normal_vec;
+        }
+
+        Eigen::Vector3d calc_thruster_force() const {
+            Eigen::Vector3d thruster_force = Eigen::Vector3d::Zero();
+            for (size_t i = 0; i < this->ssd.n_thruster; ++i) {
+                thruster_force += -this->ssd.thruster_orientation.col(i) * this->ssd.rating_thruster_force * this->thruster_firing_duty[i];
+            }
+            return thruster_force;
+        }
+
+        Eigen::Vector3d calc_cmg_torque() const {
+            Eigen::Vector3d cmg_torque = Eigen::Vector3d::Zero();
+            for (size_t i = 0; i < this->ssd.n_cmg; ++i) {
+                cmg_torque += this->cmg_gimbal_rate[i] * this->ssd.cmg_h_cross_vec[i];
+            }
+            return cmg_torque;
         }
 
 
@@ -732,7 +617,8 @@ namespace SpaceStationSimulator {
             // -------- Control --------
             // attitude_control_plan
             // - 0: No control
-            // - 1: LVLH
+            // - 1: LVLH (manual control)
+            // - 2: LVLH (auto control)
             this->attitude_control_plan = attitude_control_plan;
 
             // -------- Initialize time-varying parameters --------
@@ -751,7 +637,7 @@ namespace SpaceStationSimulator {
                 Eigen::Matrix3d::Identity(), this->ss_position_eci
             );
 
-            Eigen::Matrix3d ss_attitude_rot_mat = Rotation::euler2dcm(ss_init_euler_vec);
+            Eigen::Matrix3d ss_attitude_rot_mat = Rotation::euler2dcm(ss_init_euler_vec).transpose();
             this->ss_quaternion_vec = Rotation::dcm2quat(ss_attitude_rot_mat);
             this->ss_w_vec = ss_init_w_vec;
 
@@ -763,7 +649,61 @@ namespace SpaceStationSimulator {
 
             this->sarj_angle = 0.0;
 
+            this->sarj_rotation_axis_vec = this->ssd.sarj_rotation_axis;
+            this->ss_sap_basic_normal_vec = this->ssd.sap_base_normal_vector;
+
+            std::cout << this->sarj_rotation_axis_vec << std::endl;
+            std::cout << this->ss_sap_basic_normal_vec << std::endl;
+
             this->ss_sap_normal_vec = this->calc_ss_sap_normal_vec();
+
+            this->thruster_firing_duty = Eigen::VectorXd::Zero(this->ssd.n_thruster);
+            //this->thruster_firing_duty[0] = 1;
+            //this->thruster_firing_duty[1] = 1;
+            //this->thruster_firing_duty[2] = 1;
+            //this->thruster_firing_duty[3] = 1;
+            //this->thruster_firing_duty[4] = 1;
+            //this->thruster_firing_duty[5] = 1;
+            //this->thruster_firing_duty[6] = 1;
+            //this->thruster_firing_duty[7] = 1;
+
+            this->thruster_firing_duty *= 0.1;
+
+            this->cmg_gimbal_rate = Eigen::VectorXd::Zero(this->ssd.n_cmg);
+
+            this->ss_controller = SpaceStationDynamicsController();
+            this->control_kp = 3.0e-3;
+            this->control_ki = 1.5e-3;
+            this->control_kd = 1.0e-3;
+        }
+
+
+        Eigen::Vector3d calc_dw(const Eigen::Vector3d& ss_w, const Eigen::Vector3d& torque_vec) const {
+            Eigen::Vector3d rhs = torque_vec - ss_w.cross(this->ssd.inertia_matrix * ss_w);
+            // Solve I * dw = rhs without inverting I
+            Eigen::Vector3d dw = this->ssd.inertia_matrix.ldlt().solve(rhs);
+            return dw;
+        }
+
+        Eigen::Vector3d calc_dw_by_actuator(const Eigen::Vector3d& ss_w) const {
+            Eigen::Vector3d cmg_torque_vec = this->calc_cmg_torque();
+            Eigen::Vector3d thruster_torque_vec = this->ssd.thruster_mam * this->thruster_firing_duty * this->ssd.rating_thruster_force;
+            Eigen::Vector3d dw = this->calc_dw(ss_w, cmg_torque_vec + thruster_torque_vec);
+            return dw;
+        }
+
+        Eigen::Vector3d calc_dw_by_leo_environment(const Eigen::Vector3d& ss_pos_eci, const Eigen::Vector4d& ss_q, const Eigen::Vector3d& ss_w) {
+            // ---- Calculate gravity gradient torque ----
+            auto r = ss_pos_eci.norm();
+            auto r5 = r*r*r*r*r;
+            // calc DCM
+            auto dcm = Rotation::quat2dcm(ss_q);
+            // convert position vector to BF
+            auto ss_pos_bf = dcm.transpose() * ss_pos_eci;
+            auto torque_vec = (3.0 * OrbitLib::G_ME / r5 * ss_pos_bf.cross(this->ssd.inertia_matrix * ss_pos_bf));
+            Eigen::Vector3d dw = this->calc_dw(ss_w, torque_vec);
+            
+            return dw;
         }
 
         void update(double new_t) {
@@ -780,48 +720,178 @@ namespace SpaceStationSimulator {
             Eigen::Vector3d old_earth_pos_vec = this->earth_pos_vec;
             Eigen::Vector3d old_ss_pos_vec = this->ss_position_eci;
             Eigen::Vector3d old_ss_vel_vec = this->ss_velocity_eci;
+
+            Eigen::Vector4d old_ss_quaternion_vec = this->ss_quaternion_vec;
+            Eigen::Vector3d old_ss_w_vec = this->ss_w_vec;
+            
             // Eigen::Vector3d old_ss_acc_vec = this->ss_acc_vec;
             Eigen::Vector3d old_sap_normal_vec = this->ss_sap_normal_vec;
             Eigen::Vector3d old_sun_direction_vec = this->get_sun_pos_at_ss_vec();
 
             // -------- Dynamics --------
+            
+            // ---- External force and acceleration to SS ----
+            Eigen::Vector3d ss_ext_force_ssbf = Eigen::Vector3d::Zero();
+            // 
+            ss_ext_force_ssbf += this->calc_thruster_force();
+            Eigen::Vector3d ss_ext_acc_ssbf = ss_ext_force_ssbf / this->ssd.total_mass;
+
+            // Transform
+            Eigen::Vector3d ss_ext_acc_eci = this->eci_ssbf_ft.get_local_frame_basis_mat() * ss_ext_acc_ssbf;
+
+            // ---- Runge–Kutta method ----
+            double dt_h = 0.5 * dt;
+            double dt_six = dt / 6.0;
+
+            // -- k1 --
+            // - Position -
+            Eigen::Vector3d other_acc_k1 = ss_ext_acc_eci;
+            Eigen::Vector3d k1_v = this->orbit_acc_model.calc_acceleration_on_leo(old_ss_pos_vec, old_ss_vel_vec) + other_acc_k1;
+            Eigen::Vector3d k1_r = old_ss_vel_vec;
+            // - Attitude -
+            auto k1_w_act = this->calc_dw_by_actuator(old_ss_w_vec);
+            auto k1_w_env = this->calc_dw_by_leo_environment(old_ss_pos_vec, old_ss_quaternion_vec, old_ss_w_vec);
+            Eigen::Vector3d k1_w = k1_w_act + k1_w_env;
+            auto k1_q = quaternion_diff_equ(old_ss_quaternion_vec, old_ss_w_vec);
+
+            // -- k2 --
+            // - Position -
+            Eigen::Vector3d other_acc_k2 = ss_ext_acc_eci;
+            Eigen::Vector3d pos_k2 = old_ss_pos_vec + dt_h * k1_r;
+            Eigen::Vector3d vel_k2 = old_ss_vel_vec + dt_h * k1_v;
+            Eigen::Vector3d k2_v = this->orbit_acc_model.calc_acceleration_on_leo(pos_k2, vel_k2) + other_acc_k2;
+            Eigen::Vector3d k2_r = vel_k2;
+            // - Attitude -
+            auto w_for_k2 = old_ss_w_vec + dt_h * k1_w;
+            auto q_for_k2 = (old_ss_quaternion_vec + dt_h * k1_q).normalized();
+            auto k2_w_act = this->calc_dw_by_actuator(w_for_k2);
+            auto k2_w_env = this->calc_dw_by_leo_environment(pos_k2, q_for_k2, w_for_k2);
+            auto k2_w = k2_w_act + k2_w_env;
+            auto k2_q = quaternion_diff_equ(q_for_k2, w_for_k2);
+
+            // -- k3 --
+            // - Position -
+            Eigen::Vector3d other_acc_k3 = ss_ext_acc_eci;
+            Eigen::Vector3d pos_k3 = old_ss_pos_vec + dt_h * k2_r;
+            Eigen::Vector3d vel_k3 = old_ss_vel_vec + dt_h * k2_v;
+            Eigen::Vector3d k3_v = this->orbit_acc_model.calc_acceleration_on_leo(pos_k3, vel_k3) + other_acc_k3;
+            Eigen::Vector3d k3_r = vel_k3;
+            // - Attitude -
+            auto w_for_k3 = old_ss_w_vec + dt_h * k2_w;
+            auto q_for_k3 = (old_ss_quaternion_vec + dt_h * k2_q).normalized();
+            auto k3_w_act = this->calc_dw_by_actuator(w_for_k3);
+            auto k3_w_env = this->calc_dw_by_leo_environment(pos_k3, q_for_k3, w_for_k3);
+            auto k3_w = k3_w_act + k3_w_env;
+            auto k3_q = quaternion_diff_equ(q_for_k3, w_for_k3);
+
+            // -- k4 --
+            // - Position -
+            Eigen::Vector3d other_acc_k4 = ss_ext_acc_eci;
+            Eigen::Vector3d pos_k4 = old_ss_pos_vec + dt * k3_r;
+            Eigen::Vector3d vel_k4 = old_ss_vel_vec + dt * k3_v;
+            Eigen::Vector3d k4_v = this->orbit_acc_model.calc_acceleration_on_leo(pos_k4, vel_k4) + other_acc_k4;
+            Eigen::Vector3d k4_r = vel_k4;
+            // - Attitude -
+            auto w_for_k4 = old_ss_w_vec + dt * k3_w;
+            auto q_for_k4 = (old_ss_quaternion_vec + dt * k3_q).normalized();
+            auto k4_w_act = this->calc_dw_by_actuator(w_for_k4);
+            auto k4_w_env = this->calc_dw_by_leo_environment(pos_k4, q_for_k4, w_for_k4);
+            auto k4_w = k4_w_act + k4_w_env;
+            auto k4_q = quaternion_diff_equ(q_for_k4, w_for_k4);
+
+            // -- add --
+            // - Position -
+            this->ss_acceleration_eci = dt_six * (k1_v + 2.0 * k2_v + 2.0 * k3_v + k4_v);
+            this->ss_velocity_eci = old_ss_vel_vec + this->ss_acceleration_eci;
+            this->ss_position_eci = old_ss_pos_vec + dt_six * (k1_r + 2.0 * k2_r + 2.0 * k3_r + k4_r);
+            // - Attitude -
+            this->ss_w_vec = old_ss_w_vec + (k1_w + 2.0 * k2_w + 2.0 * k3_w + k4_w) * dt_six;
+            this->ss_quaternion_vec = old_ss_quaternion_vec + (k1_q + 2.0 * k2_q + 2.0 * k3_q + k4_q) * dt_six;
+            this->ss_quaternion_vec.normalize();
+
+            //this->ss_quaternion_vec = old_ss_quaternion_vec;
+
+            Eigen::Matrix3d ss_rot_mat = Rotation::quat2dcm(this->ss_quaternion_vec);
 
             // ---- Position & Velocity ----
             this->earth_pos_vec = this->calc_earth_pos_vec(this->t);
 
-            // Space station @ECI-frame
-            this->orbit_acc_model.update_position_velocity(old_ss_pos_vec, old_ss_vel_vec, dt, this->ss_position_eci, this->ss_velocity_eci, this->ss_acceleration_eci);
+            //// ---- External force and acceleration to SS ----
+            //Eigen::Vector3d ss_ext_force_ssbf = Eigen::Vector3d::Zero();
+            //// 
+            //ss_ext_force_ssbf += this->calc_thruster_force();
+            //Eigen::Vector3d ss_ext_acc_ssbf = ss_ext_force_ssbf / this->ssd.total_mass;
 
-            // ---- Attitude ----
-            Eigen::Matrix3d ss_rot_mat = Eigen::Matrix3d::Identity();
+            //// Transform
+            //Eigen::Vector3d ss_ext_acc_eci = this->eci_ssbf_ft.get_local_frame_basis_mat() * ss_ext_acc_ssbf;
 
-            if (this->attitude_control_plan == 0)
-            {
-                // --- No control ---
-                // Update quaternion and normalize (if don't, norm becomes not 1)
-                this->ss_quaternion_vec = update_quaternion(this->ss_quaternion_vec, this->ss_w_vec, dt).normalized();
-                ss_rot_mat = Rotation::quat2dcm(this->ss_quaternion_vec);
-            }
-            else if (this->attitude_control_plan == 1)
-            {
-                // --- LVLH ---
-                // X-basis is velocity vector
-                Eigen::Vector3d rot_x_vec = this->ss_velocity_eci.normalized();
+            //// Space station @ECI-frame
+            //this->orbit_acc_model.update_position_velocity(
+            //    old_ss_pos_vec, old_ss_vel_vec, dt, ss_ext_acc_eci,
+            //    this->ss_position_eci, this->ss_velocity_eci, this->ss_acceleration_eci
+            //);
+
+            //// ---- Attitude ----
+
+            if (this->attitude_control_plan == 1) {
+                // --- LVLH Control () ---
+
                 // Z-basis
-                Eigen::Vector3d rot_z_vec = -this->ss_position_eci.normalized();
+                Eigen::Vector3d rot_z_vec = -old_ss_pos_vec.normalized();
                 // Y-basis
-                Eigen::Vector3d rot_y_vec = rot_x_vec.cross(rot_z_vec);
+                Eigen::Vector3d rot_y_vec = -old_ss_vel_vec.normalized().cross(rot_z_vec);
+                // X-basis
+                Eigen::Vector3d rot_x_vec = rot_y_vec.cross(rot_z_vec);
+
+                Eigen::Matrix3d target_ss_rot_mat;
+                target_ss_rot_mat <<
+                    rot_x_vec[0], rot_y_vec[0], rot_z_vec[0],
+                    rot_x_vec[1], rot_y_vec[1], rot_z_vec[1],
+                    rot_x_vec[2], rot_y_vec[2], rot_z_vec[2];
+
+                Eigen::Vector4d target_q = Rotation::dcm2quat(target_ss_rot_mat);
+
+                Eigen::VectorXd optimal_cmg_gimbal_rate = this->ss_controller.compute_cmg_gimbal_rates(
+                    target_q, this->ss_quaternion_vec, this->ss_w_vec, dt,
+                    this->control_kp, this->control_ki, this->control_kd
+                );
+                double abs_max_gimbal_rate = optimal_cmg_gimbal_rate.array().abs().maxCoeff();
+                //std::cout << abs_max_gimbal_rate << std::endl;
+                //std::cout << optimal_cmg_gimbal_rate.transpose() << std::endl;
+                if (this->ssd.max_cmg_gimbal_rate < abs_max_gimbal_rate) {
+                    this->cmg_gimbal_rate = optimal_cmg_gimbal_rate / abs_max_gimbal_rate * this->ssd.max_cmg_gimbal_rate;
+                }
+                else {
+                    this->cmg_gimbal_rate = optimal_cmg_gimbal_rate;
+                }
+
+                if (this->cmg_gimbal_rate.hasNaN()) {
+                    this->cmg_gimbal_rate.setZero();
+                }
+                //this->cmg_gimbal_rate.setZero();
+                //std::cout<< this->cmg_gimbal_rate.transpose() << std::endl;
+                //std::cout<< "!!!!!!!!!!!!!" << std::endl;
+            }
+            else if (this->attitude_control_plan == 2) {
+                // --- LVLH Control (auto) ---
+                // Z-basis
+                Eigen::Vector3d rot_z_vec = -old_ss_pos_vec.normalized();
+                // Y-basis
+                Eigen::Vector3d rot_y_vec = -old_ss_vel_vec.normalized().cross(rot_z_vec);
+                // X-basis
+                Eigen::Vector3d rot_x_vec = rot_y_vec.cross(rot_z_vec);
 
                 ss_rot_mat <<
                     rot_x_vec[0], rot_y_vec[0], rot_z_vec[0],
                     rot_x_vec[1], rot_y_vec[1], rot_z_vec[1],
                     rot_x_vec[2], rot_y_vec[2], rot_z_vec[2];
+                this->ss_quaternion_vec = Rotation::dcm2quat(ss_rot_mat);
             }
 
             // Frame transformer of SCI - ECI
             this->sci_eci_ft.update_origin_vec(this->earth_pos_vec);
             // Frame transformer of ECI - BF
-            this->eci_ssbf_ft.update_basis_mat(ss_rot_mat.transpose());
+            this->eci_ssbf_ft.update_basis_mat(ss_rot_mat);
             this->eci_ssbf_ft.update_origin_vec(this->ss_position_eci);
 
             // -------- Power --------
@@ -843,6 +913,7 @@ namespace SpaceStationSimulator {
             // ---- Update Solar array direction by SARJ angle ----
             this->ss_sap_normal_vec = this->calc_ss_sap_normal_vec();
 
+            //std::cout << old_sun_direction_vec.transpose() << std::endl;
             double cos_theta = old_sap_normal_vec.dot(old_sun_direction_vec.normalized());
 
             if (this->ss_in_sunlight) {
@@ -885,7 +956,16 @@ namespace SpaceStationSimulator {
         inline const Eigen::Vector4d& get_ss_quaternion_eci() const {
             return this->ss_quaternion_vec;
         }
-        
+
+        inline const Eigen::Matrix3d& get_ss_rotation_matrix_eci() const {
+            // Get rotation matrix that expresses attitude of the space station.
+            return this->eci_ssbf_ft.get_local_frame_basis_mat();
+        }
+
+        inline const Eigen::Vector3d& get_ss_w() const {
+            return this->ss_w_vec;
+        }
+
         inline double get_sarj_angle() const {
             return this->sarj_angle;
         }
@@ -925,7 +1005,12 @@ namespace SpaceStationSimulator {
             this->sarj_angle = sarj_angle;
         }
 
+        void set_thruster_command(const Eigen::VectorXd& thruster_command) {
+            this->thruster_firing_duty = thruster_command;
+        }
+
     };
+    
 }
 
 #endif

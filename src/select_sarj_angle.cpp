@@ -30,6 +30,8 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr subscription_;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_;
 
+    space_station_design::SpaceStationDesign ss_design;
+
 
 public:
     SelectSarjAngle() : rclcpp::Node("select_sarj_angle"){
@@ -40,8 +42,10 @@ public:
 
         this->publisher_ = this->create_publisher<std_msgs::msg::Float64>(TopicName::target_sarj_angle_value, 10);
 
+        this->ss_design = space_station_design::SpaceStationDesign();
+
         // Normalize
-        this->sarj_rotation_axis_vec = SpaceStationDesign::SARJ_ROTATION_AXIS.normalized();
+        this->sarj_rotation_axis_vec = this->ss_design.sarj_rotation_axis.normalized();
     }
 
 
@@ -54,8 +58,8 @@ private:
         double dot = this->sarj_rotation_axis_vec.dot(sun_direction_ssbf_vec);
         Eigen::Vector3d projected_sun_dir_vec = sun_direction_ssbf_vec - dot * this->sarj_rotation_axis_vec;
         Eigen::Vector3d projected_sun_dir_normalized_vec = projected_sun_dir_vec.normalized();
-        Eigen::Vector3d cross_vec = SpaceStationDesign::SAP_BASE_NORMAL_VEC.cross(projected_sun_dir_normalized_vec);
-        double cos_theta = SpaceStationDesign::SAP_BASE_NORMAL_VEC.dot(projected_sun_dir_normalized_vec);
+        Eigen::Vector3d cross_vec = this->ss_design.sap_base_normal_vector.cross(projected_sun_dir_normalized_vec);
+        double cos_theta = this->ss_design.sap_base_normal_vector.dot(projected_sun_dir_normalized_vec);
         double theta = std::acos(cos_theta);
 
         if (cross_vec.dot(this->sarj_rotation_axis_vec) < 0){

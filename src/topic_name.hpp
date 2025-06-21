@@ -15,5 +15,6 @@ namespace TopicName
     std::string ss_position_eci = "ss_position_eci";
     std::string ss_velocity_eci = "ss_velocity_eci";
     std::string ss_acceleration_eci = "ss_acceleration_eci";
+    std::string thruster_duty = "thruster_duty";
 
 } // namespace TopicName

@@ -14,6 +14,7 @@
 #include <std_msgs/msg/int32.hpp>
 #include <geometry_msgs/msg/quaternion.hpp>
 #include "geometry_msgs/msg/vector3.hpp"
+#include "std_msgs/msg/float64_multi_array.hpp"
 
 #include "eigen_util.hpp"
 #include "topic_name.hpp"
@@ -42,6 +43,7 @@ private:
 
     // ---- Subscriptions ----
     rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr subscription_sarj_angle;
+    rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr thruster_dury_subscription;
 
     rclcpp::TimerBase::SharedPtr update_dynamics_timer;
     rclcpp::TimerBase::SharedPtr publish_value_timer;
@@ -93,6 +95,9 @@ private:
         this->quaternion_publisher_map[topic_name]->publish(message_instance);
     }
 
+    // ================ Function about subscription ================
+    
+
     // 
     void update_dynamics_callback(){
         
@@ -142,6 +147,17 @@ private:
         RCLCPP_INFO(this->get_logger(), "Subscribe: target_sarj_agnle=%4.2f[deg]", Math::rad2deg(target_sarj_agnle));
         this->sss.set_sarj_angle(target_sarj_agnle);
     }
+    
+    void sub_thruster_duty_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg){
+        size_t vector_size = msg->data.size();
+        RCLCPP_INFO(this->get_logger(), "Received vector of size: %zu", vector_size);
+        
+        Eigen::VectorXd thruster_duty(vector_size);
+        for (size_t i = 0; i < vector_size; ++i) {
+            thruster_duty[i] = msg->data[i];
+        }
+        this->sss.set_thruster_command(thruster_duty);
+    }
 
     // -------- Declare and get parameter for each type--------
 
@@ -163,7 +179,7 @@ private:
 
 public:
 
-    SpaceStationSimulationNode() : Node("power_generation")
+    SpaceStationSimulationNode() : Node("orbit_and_power")
     {
         // -------- Declare parameters and set default value --------
         int32_t attitude_control_plan = this->declare_and_get_int32_parameter("attitude_control_plan", 0);
@@ -235,7 +251,12 @@ public:
         this->subscription_sarj_angle = this->create_subscription<std_msgs::msg::Float64>(
             TopicName::target_sarj_angle_value, 10,
             std::bind(&SpaceStationSimulationNode::sub_sarj_angle_callback, this, std::placeholders::_1)
-            );
+        );
+
+        this->thruster_dury_subscription = this->create_subscription<std_msgs::msg::Float64MultiArray>(
+            TopicName::thruster_duty, 10,
+            std::bind(&SpaceStationSimulationNode::sub_thruster_duty_callback, this, std::placeholders::_1)
+        );
 
         // -------- Output log for check --------
         std::cout << "Dynamics timestep (as simulation time): " << simu_timestep << "[s]" << std::endl;
