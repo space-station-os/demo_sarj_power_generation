@@ -868,9 +868,6 @@ namespace SpaceStationSimulator {
                 if (this->cmg_gimbal_rate.hasNaN()) {
                     this->cmg_gimbal_rate.setZero();
                 }
-                //this->cmg_gimbal_rate.setZero();
-                //std::cout<< this->cmg_gimbal_rate.transpose() << std::endl;
-                //std::cout<< "!!!!!!!!!!!!!" << std::endl;
             }
             else if (this->attitude_control_plan == 2) {
                 // --- LVLH Control (auto) ---

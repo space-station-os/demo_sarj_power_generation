@@ -150,12 +150,13 @@ private:
     
     void sub_thruster_duty_callback(const std_msgs::msg::Float64MultiArray::SharedPtr msg){
         size_t vector_size = msg->data.size();
-        RCLCPP_INFO(this->get_logger(), "Received vector of size: %zu", vector_size);
+        // RCLCPP_INFO(this->get_logger(), "Received vector of size: %zu", vector_size);
         
         Eigen::VectorXd thruster_duty(vector_size);
         for (size_t i = 0; i < vector_size; ++i) {
             thruster_duty[i] = msg->data[i];
         }
+        std::cout << thruster_duty.transpose() << std::endl;
         this->sss.set_thruster_command(thruster_duty);
     }
 
@@ -182,14 +183,14 @@ public:
     SpaceStationSimulationNode() : Node("orbit_and_power")
     {
         // -------- Declare parameters and set default value --------
-        int32_t attitude_control_plan = this->declare_and_get_int32_parameter("attitude_control_plan", 0);
+        int32_t attitude_control_plan = this->declare_and_get_int32_parameter("attitude_control_plan", 2);
 
         Eigen::Vector3d ss_init_euler_vec = this->declare_and_get_parameter("ss_init_euler_angle", {0.0, 0.0, 0.0});
-        Eigen::Vector3d ss_init_w_vec = this->declare_and_get_parameter("ss_init_w_vec", {0.0, 0.02, 0.0});
+        Eigen::Vector3d ss_init_w_vec = this->declare_and_get_parameter("ss_init_w_vec", {0.0, 0.0, 0.0});
 
         double simu_timestep = this->declare_and_get_double_parameter("simu_timestep", 20.0);
-        double publish_period = this->declare_and_get_double_parameter("publish_period", 20.0);
-        double simu_speed_rate = this->declare_and_get_double_parameter("speed_rate", 200.0);
+        double publish_period = this->declare_and_get_double_parameter("publish_period", 60.0);
+        double simu_speed_rate = this->declare_and_get_double_parameter("speed_rate", 400.0);
 
         std::string line2 = "2 60182  97.9211 215.3545 0001598  99.1275 261.0117 14.79484184 44375";
 
@@ -207,7 +208,7 @@ public:
         OrbitLib::convert_tle_to_eci(line2, ss_position_eci, ss_velocity_eci);
     
         this->sss = SpaceStationSimulator::SpaceStationSimulator();
-        // sss.activate_propagation_j2(OrbitLib::J2*100);
+        // sss.activate_propagation_j2(OrbitLib::J2);
         // this->sss.activate_propagation_air_drag(2.2, 1000, 10);
         this->sss.initialize(ss_position_eci, ss_velocity_eci, ss_init_euler_vec, ss_init_w_vec, attitude_control_plan);
 

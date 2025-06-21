@@ -132,8 +132,8 @@ def main():
     print(in_df.columns)
 
     # draw_latlon(in_df)
-    draw_3d_orbit(in_df)
-    # draw_motion_radius(in_df)
+    # draw_3d_orbit(in_df)
+    draw_motion_radius(in_df)
     return
 
 
