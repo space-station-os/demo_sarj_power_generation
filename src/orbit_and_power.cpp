@@ -128,7 +128,7 @@ private:
         // ---- Publish ----
         this->publish_float64(TopicName::simu_time, simu_time);
         this->publish_float64(TopicName::generated_power, this->sss.get_current_generated_power());
-        this->publish_float64(TopicName::soc, this->sss.get_current_battery_amount());
+        this->publish_float64(TopicName::battery_level, this->sss.get_current_battery_amount());
         this->publish_float64(TopicName::sarj_angle, this->sss.get_sarj_angle());
 
         this->publish_int32(TopicName::ss_in_sunlight, this->sss.is_ss_in_sunlight());
@@ -156,7 +156,6 @@ private:
         for (size_t i = 0; i < vector_size; ++i) {
             thruster_duty[i] = msg->data[i];
         }
-        std::cout << thruster_duty.transpose() << std::endl;
         this->sss.set_thruster_command(thruster_duty);
     }
 
@@ -236,7 +235,7 @@ public:
         // ---- Publishers ----
         this->add_float64_publisher(TopicName::simu_time);
         this->add_float64_publisher(TopicName::generated_power);
-        this->add_float64_publisher(TopicName::soc);
+        this->add_float64_publisher(TopicName::battery_level);
         this->add_float64_publisher(TopicName::sarj_angle);
 
         this->add_int32_publisher(TopicName::ss_in_sunlight);

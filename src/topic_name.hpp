@@ -6,7 +6,7 @@ namespace TopicName
 {
     std::string simu_time = "simu_time";
     std::string generated_power = "generated_power";
-    std::string soc = "soc";
+    std::string battery_level = "battery_level";
     std::string sarj_angle = "sarj_angle";
     std::string ss_in_sunlight = "ss_in_sunlight";
     std::string ss_attitude = "ss_attitude";

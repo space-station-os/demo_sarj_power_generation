@@ -67,12 +67,13 @@ def draw_motion_radius(in_df):
 
     eci_r_sr = np.sqrt(eci_x_sr**2 + eci_y_sr**2 + eci_z_sr**2)
     
-    fig, ax = plt.subplots(figsize=(12, 12))
+    fig, ax = plt.subplots(figsize=(12, 8))
     ax.plot(unix_time_sr, eci_r_sr)
+    ax.set_ylabel('Motion Radius [m]')
+    ax.set_xlabel('time [s]')
     plt.show()
 
     return
-
 
 
 def draw_3d_orbit(in_df):
@@ -123,6 +124,19 @@ def draw_3d_orbit(in_df):
     plt.show()
 
 
+def draw_soc(in_df: pd.DataFrame):
+    unix_time_sr = in_df['simu_time']
+    battery_level_sr = in_df['battery_level']
+    
+    fig, ax = plt.subplots(figsize=(12, 8))
+    ax.plot(unix_time_sr, battery_level_sr)
+    ax.set_ylabel('Battery Level [Wh]')
+    ax.set_xlabel('time [s]')
+    plt.show()
+
+    return
+
+
 def main():
     
     in_filepath_list = sorted(glob.glob('./result_csv/*'))
@@ -134,6 +148,7 @@ def main():
     # draw_latlon(in_df)
     # draw_3d_orbit(in_df)
     draw_motion_radius(in_df)
+    draw_soc(in_df)
     return
 
 
