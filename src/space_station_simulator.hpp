@@ -658,16 +658,6 @@ namespace SpaceStationSimulator {
             this->ss_sap_normal_vec = this->calc_ss_sap_normal_vec();
 
             this->thruster_firing_duty = Eigen::VectorXd::Zero(this->ssd.n_thruster);
-            //this->thruster_firing_duty[0] = 1;
-            //this->thruster_firing_duty[1] = 1;
-            //this->thruster_firing_duty[2] = 1;
-            //this->thruster_firing_duty[3] = 1;
-            //this->thruster_firing_duty[4] = 1;
-            //this->thruster_firing_duty[5] = 1;
-            //this->thruster_firing_duty[6] = 1;
-            //this->thruster_firing_duty[7] = 1;
-
-            this->thruster_firing_duty *= 0.1;
 
             this->cmg_gimbal_rate = Eigen::VectorXd::Zero(this->ssd.n_cmg);
 
@@ -815,21 +805,6 @@ namespace SpaceStationSimulator {
 
             // ---- Position & Velocity ----
             this->earth_pos_vec = this->calc_earth_pos_vec(this->t);
-
-            //// ---- External force and acceleration to SS ----
-            //Eigen::Vector3d ss_ext_force_ssbf = Eigen::Vector3d::Zero();
-            //// 
-            //ss_ext_force_ssbf += this->calc_thruster_force();
-            //Eigen::Vector3d ss_ext_acc_ssbf = ss_ext_force_ssbf / this->ssd.total_mass;
-
-            //// Transform
-            //Eigen::Vector3d ss_ext_acc_eci = this->eci_ssbf_ft.get_local_frame_basis_mat() * ss_ext_acc_ssbf;
-
-            //// Space station @ECI-frame
-            //this->orbit_acc_model.update_position_velocity(
-            //    old_ss_pos_vec, old_ss_vel_vec, dt, ss_ext_acc_eci,
-            //    this->ss_position_eci, this->ss_velocity_eci, this->ss_acceleration_eci
-            //);
 
             //// ---- Attitude ----
 
