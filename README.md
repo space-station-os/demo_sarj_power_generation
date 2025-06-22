@@ -19,25 +19,30 @@ $ source install/setup.bash
 ```
 
 ## Run
-Launch three terminals.
-Terminal 1: SARJ angle optimization node
+Launch four terminals.  
+### Terminal 1: Record
+Record simulation result as rosbag.  
+And convert by python script.
+```
+$ source rosbag_record.sh
+$ python3 python_script/rosbag_to_csv.py
+```
+
+### Terminal 2: SARJ angle optimization node
 ```
 $ ros2 run demo_sarj_power_generation select_sarj_angle
 ```
-Terminal 2: Dynamics & power generation node
+
+### Terminal 3: Dynamics & power generation node
 ```
 $ ros2 run demo_sarj_power_generation power_generation
 ```
-Terminal 3: Record
-```
-$ source rosbag_record.sh
-```
 
-## Check Result
-Simulation result is recorded as a rosbag file in the directory "rosbag2_out".
-You can check it by
+### Terminal 4: Visualize Result
+Visualize the result by python script.  
+Before this, install modules "cartopy", "matplotlib" and "padnas" is required.
 ```
-$ rqt_bag rosbag2_out/rosbag2_YYYY-MM-DD_hh_mm_ss/
+$ python python_script/draw_3d_position.py 
 ```
 
 ## Simulation Overview
