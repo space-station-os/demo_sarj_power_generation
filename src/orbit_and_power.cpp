@@ -171,12 +171,16 @@ private:
         return static_cast<int32_t>(this->get_parameter(param_name).as_int());
     }
 
-    Eigen::Vector3d declare_and_get_parameter(std::string param_name, std::vector<double> default_val){
+    Eigen::Vector3d declare_and_get_double_vector_parameter(std::string param_name, std::vector<double> default_val){
         this->declare_parameter<std::vector<double>>(param_name, default_val);
         std::vector<double> temp_vec = this->get_parameter(param_name).as_double_array();
         return EigenUtil::from_std_vector(temp_vec);
     }
 
+    std::string declare_and_get_string_parameter(std::string param_name, std::string default_val){
+        this->declare_parameter<std::string>(param_name, default_val);
+        return this->get_parameter(param_name).as_string();
+    }
 public:
 
     SpaceStationSimulationNode() : Node("orbit_and_power")
@@ -184,22 +188,23 @@ public:
         // -------- Declare parameters and set default value --------
         int32_t attitude_control_plan = this->declare_and_get_int32_parameter("attitude_control_plan", 2);
 
-        Eigen::Vector3d ss_init_euler_vec = this->declare_and_get_parameter("ss_init_euler_angle", {0.0, 0.0, 0.0});
-        Eigen::Vector3d ss_init_w_vec = this->declare_and_get_parameter("ss_init_w_vec", {0.0, 0.0, 0.0});
+        Eigen::Vector3d ss_init_euler_vec = this->declare_and_get_double_vector_parameter("ss_init_euler_angle", {0.0, 0.0, 0.0});
+        Eigen::Vector3d ss_init_w_vec = this->declare_and_get_double_vector_parameter("ss_init_w_vec", {0.0, 0.0, 0.0});
 
         double simu_timestep = this->declare_and_get_double_parameter("simu_timestep", 20.0);
         double publish_period = this->declare_and_get_double_parameter("publish_period", 60.0);
         double simu_speed_rate = this->declare_and_get_double_parameter("speed_rate", 400.0);
 
-        std::string line2 = "2 60182  97.9211 215.3545 0001598  99.1275 261.0117 14.79484184 44375";
+        std::string line2 = this->declare_and_get_string_parameter(
+            "speed_rate",
+            "2 25544  51.6363 277.6254 0002153 276.8659  83.2085 15.50196020516088"
+        );
 
         // -------- Control --------
         // attitude_control_plan
         // - 0: No control
-        // - 1: LVLH
-    
-        //string line1 = "1 25544U 98067A   22095.91869325  .00012930  00000 - 0  23502 - 3 0  9991";
-        //string line2 = "2 25544  51.6452 334.5328 0004408 351.0413  99.6998 15.49890618333972";
+        // - 1: LVLH (manual control)
+        // - 2: LVLH (auto)
     
         Eigen::Vector3d ss_position_eci;
         Eigen::Vector3d ss_velocity_eci;
