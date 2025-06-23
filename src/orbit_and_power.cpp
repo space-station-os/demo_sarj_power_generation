@@ -181,6 +181,7 @@ private:
         this->declare_parameter<std::string>(param_name, default_val);
         return this->get_parameter(param_name).as_string();
     }
+
 public:
 
     SpaceStationSimulationNode() : Node("orbit_and_power")
@@ -191,14 +192,15 @@ public:
         Eigen::Vector3d ss_init_euler_vec = this->declare_and_get_double_vector_parameter("ss_init_euler_angle", {0.0, 0.0, 0.0});
         Eigen::Vector3d ss_init_w_vec = this->declare_and_get_double_vector_parameter("ss_init_w_vec", {0.0, 0.0, 0.0});
 
-        double simu_timestep = this->declare_and_get_double_parameter("simu_timestep", 20.0);
+        double simu_timestep = this->declare_and_get_double_parameter("simu_timestep", 2.0);
         double publish_period = this->declare_and_get_double_parameter("publish_period", 60.0);
         double simu_speed_rate = this->declare_and_get_double_parameter("speed_rate", 400.0);
 
         std::string line2 = this->declare_and_get_string_parameter(
-            "speed_rate",
-            "2 25544  51.6363 277.6254 0002153 276.8659  83.2085 15.50196020516088"
+            "tle_line2",
+            "2 25544  51.6452 334.5328 0004408 351.0413  99.6998 15.49890618333972"
         );
+        // line2 = "2 60182  97.9211 215.3545 0001598  99.1275 261.0117 14.79484184 44375";
 
         // -------- Control --------
         // attitude_control_plan

@@ -67,7 +67,7 @@ def draw_motion_radius(in_df):
 
     eci_r_sr = np.sqrt(eci_x_sr**2 + eci_y_sr**2 + eci_z_sr**2)
     
-    fig, ax = plt.subplots(figsize=(12, 8))
+    fig, ax = plt.subplots(figsize=(6, 4))
     ax.plot(unix_time_sr, eci_r_sr)
     ax.set_ylabel('Motion Radius [m]')
     ax.set_xlabel('time [s]')
@@ -128,7 +128,7 @@ def draw_soc(in_df: pd.DataFrame):
     unix_time_sr = in_df['simu_time']
     battery_level_sr = in_df['battery_level']
     
-    fig, ax = plt.subplots(figsize=(12, 8))
+    fig, ax = plt.subplots(figsize=(6, 4))
     ax.plot(unix_time_sr, battery_level_sr)
     ax.set_ylabel('Battery Level [Wh]')
     ax.set_xlabel('time [s]')
