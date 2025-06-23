@@ -128,19 +128,19 @@ You can check them by using rosbag or rqt_plot.
 ## Parameters
 power_generation node has parameters.
 Space station parameters and default value:
-- ss_altitude=400000: altitude of space station orbit [m].
-- ss_raan=10[deg]: RAAN of space station orbit [rad].
-- ss_inclination=20[deg]: inclination of space station orbit [rad].
-- ss_init_euler_angle=[0, 0, 0]: atitude of space station as Euler angle [rad].
-- ss_init_w_vec=[0, 0.02, 0]: angular velocity of space station [rad/s].
-- attitude_control_plan=0:
-  - 0: no control
-  - 1: LVLH
+| Topic name              | Description                              | Default value | Unit / Note                                     |
+| ----------------------- | ---------------------------------------- | ------------- | ----------------------------------------------- |
+| `ss_init_euler_angle`   | Attitude of space station as Euler angle | `[0, 0, 0]`   | \[rad]                                          |
+| `ss_init_w_vec`         | Angular velocity of space station        | `[0, 0, 0]`   | \[rad/s]                                        |
+| `attitude_control_plan` | Control mode                             | `0`           | 0: no control, 1: LVLH (manual), 2: LVLH (auto) |
 
-Simulation parameters and default value:
-- simu_timestep=20: timestep of simulation [s]
-- speed_rate=20: rate of simulation
-- publish_period=200: pubish period [s]
+
+| Parameter name   | Description            | Default value | Unit / Note   |
+| ---------------- | ---------------------- | ------------- | ------------- |
+| `simu_timestep`  | Timestep of simulation | `20`          | \[s]          |
+| `speed_rate`     | Rate of simulation     | `20`          | Dimensionless |
+| `publish_period` | Publish period         | `200`         | \[s]          |
+
 
 These parameters can be set by like:
 ```
