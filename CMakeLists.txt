@@ -28,10 +28,11 @@ find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 
-add_executable(power_generation src/power_generation.cpp)
+add_executable(orbit_and_power src/orbit_and_power.cpp)
 add_executable(select_sarj_angle src/select_sarj_angle.cpp)
+add_executable(select_thruster_command src/select_thruster_command.cpp)
 ament_target_dependencies(
-  power_generation 
+  orbit_and_power 
   rclcpp 
   geometry_msgs
   std_msgs
@@ -42,13 +43,22 @@ ament_target_dependencies(
   geometry_msgs
   std_msgs
   )
+ament_target_dependencies(
+  select_thruster_command 
+  rclcpp 
+  geometry_msgs
+  std_msgs
+  )
+
 
 install(TARGETS
-  power_generation
+  orbit_and_power
   select_sarj_angle
+  select_thruster_command
   DESTINATION lib/${PROJECT_NAME})
 
-target_include_directories(power_generation PRIVATE ${EIGEN3_INCLUDE_DIR})
+target_include_directories(orbit_and_power PRIVATE ${EIGEN3_INCLUDE_DIR})
 target_include_directories(select_sarj_angle PRIVATE ${EIGEN3_INCLUDE_DIR})
+target_include_directories(select_thruster_command PRIVATE ${EIGEN3_INCLUDE_DIR})
 
 ament_package()

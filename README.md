@@ -19,42 +19,58 @@ $ source install/setup.bash
 ```
 
 ## Run
-Launch three terminals.
-Terminal 1: SARJ angle optimization node
+Launch five terminals.  
+### Terminal 1: Record
+Record simulation result as rosbag.  
+And convert by python script.
+```
+$ source rosbag_record.sh
+$ python3 python_script/rosbag_to_csv.py
+```
+
+### Terminal 2: SARJ angle optimization node
 ```
 $ ros2 run demo_sarj_power_generation select_sarj_angle
 ```
-Terminal 2: Dynamics & power generation node
+
+### Terminal 3: Thruster command node
+```
+$ ros2 run demo_sarj_power_generation select_thruster_command
+```
+
+### Terminal 4: Dynamics & power generation node
 ```
 $ ros2 run demo_sarj_power_generation power_generation
 ```
-Terminal 3: Record
-```
-$ source rosbag_record.sh
-```
 
-## Check Result
-Simulation result is recorded as a rosbag file in the directory "rosbag2_out".
-You can check it by
+### Terminal 5: Visualize Result
+Visualize the result by python script.  
+Before this, install modules "cartopy", "matplotlib" and "padnas" is required.
 ```
-$ rqt_bag rosbag2_out/rosbag2_YYYY-MM-DD_hh_mm_ss/
+$ python python_script/draw_3d_position.py 
 ```
 
 ## Simulation Overview
 The earth orbit around the Sun and the space station's orbit and attitude are simulated.
 
 ### Space Station Model
-Three axis shows space station body fixed (SSBF) frame.  
-![image](https://github.com/user-attachments/assets/c3a9c270-7683-48f7-a3d6-a2e6bfcccb7b)
+Three axis shows space station body fixed (SSBF) frame. #Numbers mean thrusters.    
+![image](https://github.com/user-attachments/assets/264d9157-c80e-499a-80e7-8d1675db9c71)
 
 ### Orbit Dynamics
-The earth rotetes around the Sun. Its orbit is perfect circle.
-The space station rotetes around the earth. Its orbit is perfect circle. Orbital elements such as altitde, RAAN and inclination can be set. Initial attitude is set as Euler angle Z->Y->X [rad]. And angular velocity is set as roll, pitch, yaw [rad].
+The earth rotetes around the Sun. Its orbit is perfect circle.  
+The space station rotetes around the earth. As perturbation, J2 and air drag can be considered. You can set them in constructor of the class SpaceStationSimulationNode in "orbit_and_power.cpp". Orbital elements such as altitde, RAAN and inclination can be set. Initial attitude is set as Euler angle Z->Y->X [rad]. And angular velocity is set as roll, pitch, yaw [rad].
 
 ### Space Station Attitude
 There are two types of space station attitude control. It can be set as a parameter when running.
  - 0: No control. As time passes, the attitude changes based on angular velocity.
- - 1: LVLH. Z-axis of SSBF points the center of the earth, X-axis corresponds to velocity vector and Y-axis is their cross product.
+ - 1: LVLH (manual control). Z-axis of SSBF points the center of the earth, X-axis corresponds to velocity vector and Y-axis is their cross product. Control is simulated. Currently, this does not work!
+ - 2: LVLH (auto). Z-axis of SSBF points the center of the earth, X-axis corresponds to velocity vector and Y-axis is their cross product. Control is not simulated.
+In 0 and 1, as perturbation, gravity gradient torque can be considered.
+
+### Thruster
+There are 12 thrusters on the space station body. Their position is written in "space_station_design.hpp".  
+Their firing duty can be set by topic "thruster_duty". The minimum is 0 and the maximum is 1 as float64 type.
 
 ### Power Generation
 Shade of the space station by the earth is simulated.
@@ -62,7 +78,6 @@ And SAP angle to the sun is calculated.
 If the space station is not in shade by the earth, its SAP can generate power.
 Its amount depends on the SAP angle to the sun. The angle between the normal vector of the solar cell and the vector in the sun direction is $$\theta$$. The amount of power generated is proportional to $$\cos(\theta)$$, with a maximum value of max_generated_power when $$\theta=0$$ degrees. And if $$\theta<-90$$ or $$90< \theta$$, generated power is zero.  
 ![image](https://github.com/user-attachments/assets/841085b6-e141-4b39-80e2-77def3932d5e)
-
 
 ### SARJ
 The space station has SARJ. It can rotate SAP along Y-axis.  
@@ -77,41 +92,60 @@ There are two ROS nodes. “power_generation” simulates orbit, attitude, and p
 ![image](https://github.com/user-attachments/assets/75ac32d8-fbc6-413c-a01a-84879fbd6014)
 
 ## Pub & Sub
-power_generation node
-- pub:
-  -  /sarj_angle: SARJ angle [rad]
-  -  /simu_time: simulation time [s]
-  -  /soc: battery state of charge (SoC) [kWh]
-  -  /ss_attitude: space station attitude quaternion.
-  -  /ss_in_sunlight: if 1, space station gets sunlight. if 0, it is behind the earth.
-  -  /sun_direction_ssbf: normalized sun direction vector on SSBF
- - sub:
-   - /target_sarj_angle: target SARJ angle [rad]
+### power_generation node
+Pub
+| Topic name              | Description                                                             | Unit / Note                                |
+|-------------------------|-------------------------------------------------------------------------|---------------------------------------------|
+| `/sarj_angle`           | SARJ angle                                                              | [rad]                                       |
+| `/simu_time`            | Simulation time                                                         | [s]                                         |
+| `/battery_level`                  | Battery state of charge (SoC)                                           | [kWh]                                       |
+| `/ss_attitude`          | Space station attitude quaternion                                       | Quaternion                                  |
+| `/ss_in_sunlight`       | If 1, space station gets sunlight. If 0, it is behind the Earth         | Binary flag (0 or 1)                         |
+| `/sun_direction_ssbf`   | Normalized sun direction vector on SSBF                                 | 3D unit vector                               |
+| `/ss_position_eci`       | Position of the space station at ECI         | 3D vector [m]                        |
+| `/ss_velocity_eci`   | Velocity of the space station at ECI         | 3D vector [m/s]                               |
+
+Sub
+| Topic name              | Description                                                             | Unit / Note                                |
+|-------------------------|-------------------------------------------------------------------------|---------------------------------------------|
+| `/thruster_duty`           | Firing duty of 12 thrusters                                              | 3D vector (0 to 1 float64)                              |
+| `/target_sarj_angle`            | target SARJ angle                                                 | [rad]                                         |
   
-select_sarj_angle node
-- pub:
-  - /target_sarj_angle
-- sub:
-  - /sun_direction_ssbf
+### select_thruster_command node
+| Topic name              | Description                                                             | Unit / Note                                |
+|-------------------------|-------------------------------------------------------------------------|---------------------------------------------|
+| `/thruster_duty`           |                                              |                          |
+
+### select_sarj_angle node
+Pub
+| Topic name              | Description                                                             | Unit / Note                                |
+|-------------------------|-------------------------------------------------------------------------|---------------------------------------------|
+| `/target_sarj_angle`           |                                               |                            |
+
+Sub
+| Topic name              | Description                                                             | Unit / Note                                |
+|-------------------------|-------------------------------------------------------------------------|---------------------------------------------|
+| `/sun_direction_ssbf`           |                                               |                            |
+
   
 You can check them by using rosbag or rqt_plot.
 
 ## Parameters
 power_generation node has parameters.
 Space station parameters and default value:
-- ss_altitude=400000: altitude of space station orbit [m].
-- ss_raan=10[deg]: RAAN of space station orbit [rad].
-- ss_inclination=20[deg]: inclination of space station orbit [rad].
-- ss_init_euler_angle=[0, 0, 0]: atitude of space station as Euler angle [rad].
-- ss_init_w_vec=[0, 0.02, 0]: angular velocity of space station [rad/s].
-- attitude_control_plan=0:
-  - 0: no control
-  - 1: LVLH
+| Topic name              | Description                              | Default value | Unit / Note                                     |
+| ----------------------- | ---------------------------------------- | ------------- | ----------------------------------------------- |
+| `ss_init_euler_angle`   | Attitude of space station as Euler angle | `[0, 0, 0]`   | \[rad]                                          |
+| `ss_init_w_vec`         | Angular velocity of space station        | `[0, 0, 0]`   | \[rad/s]                                        |
+| `attitude_control_plan` | Control mode                             | `0`           | 0: no control, 1: LVLH (manual), 2: LVLH (auto) |
 
-Simulation parameters and default value:
-- simu_timestep=20: timestep of simulation [s]
-- speed_rate=20: rate of simulation
-- publish_period=200: pubish period [s]
+
+| Parameter name   | Description            | Default value | Unit / Note   |
+| ---------------- | ---------------------- | ------------- | ------------- |
+| `simu_timestep`  | Timestep of simulation | `20`          | \[s]          |
+| `speed_rate`     | Rate of simulation     | `20`          | Dimensionless |
+| `publish_period` | Publish period         | `200`         | \[s]          |
+
 
 These parameters can be set by like:
 ```
@@ -119,12 +153,20 @@ ros2 run demo_sarj_power_generation power_generation --ros-args -p simu_timestep
 ```
 
 ## Example Output
+Orbit:  
+![image](https://github.com/user-attachments/assets/17c9f19b-02ff-4155-896d-990df369abd3)
+
+Altitude:  
+If the thruster #1 and #2 fire, the space station is accelerated and its altitude gets higher.
+![image](https://github.com/user-attachments/assets/ebc097cc-6838-413f-b385-25a46a7344e7)
+
+
 If runing only power_generation node, SARJ angle is always zero. So SAP cannnot generate power efficiently.
 This plot shows change of battery SoC.  
-![image](https://github.com/user-attachments/assets/efe0787b-2ae6-4ea7-88ba-3971d389880f)
+![image](https://github.com/user-attachments/assets/59decd52-45ff-4599-96ce-869921d9bcf1)
   
-On the other hand, if running select_sarj_angle node too, optimal SARJ angle is set and SAP can generate power efficienty.
-![image](https://github.com/user-attachments/assets/35645633-b69d-4ec3-a96a-98fb5a5b8d2d)
+On the other hand, if running select_sarj_angle node too, optimal SARJ angle is set and SAP can generate power efficienty.  
+![image](https://github.com/user-attachments/assets/71d79d3f-713a-4cae-aa51-735253546066)
 
 ## To-do
 - Make 3D space station model as URDF and show it by rviz2

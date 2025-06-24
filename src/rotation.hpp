@@ -1,6 +1,10 @@
 
+#ifndef __INCLUDE_GUARD_ROTATION_HPP__
+#define __INCLUDE_GUARD_ROTATION_HPP__
+
+
+#include <vector>
 #include <Eigen/Dense>
-#include <cmath>
 
 
 namespace Rotation {
@@ -11,7 +15,7 @@ namespace Rotation {
         auto qs = quat_vec.array() * quat_vec.array();
 
         Eigen::Matrix3d dcm_mat;
-        
+
         dcm_mat.coeffRef(0, 0) = qs(0) - qs(1) - qs(2) + qs(3);
         dcm_mat.coeffRef(0, 1) = 2 * (q(0) * q(1) + q(2) * q(3));
         dcm_mat.coeffRef(0, 2) = 2 * (q(0) * q(2) - q(1) * q(3));
@@ -99,8 +103,11 @@ namespace Rotation {
     }
 
 
-    Eigen::Matrix3d rodrigues_rotation_matrix(Eigen::Vector3d axis_vec, double angle){
+    Eigen::Matrix3d rodrigues_rotation_matrix(Eigen::Vector3d axis_vec, double angle) {
         return Eigen::AngleAxis<double>(angle, axis_vec).matrix();
     }
 
 };
+
+
+#endif

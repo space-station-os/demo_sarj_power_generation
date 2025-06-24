@@ -1,5 +1,6 @@
+.vscode/*
 build/*
 install/*
 log/*
 rosbag2_out/*
-.vscode/*
+result_csv/*
