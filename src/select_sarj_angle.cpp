@@ -14,7 +14,63 @@
 #include "frame_transformer.hpp"
 #include "topic_name.hpp"
 #include "space_station_design.hpp"
+#include "sarj_angle_optimizer.hpp"
 
+
+class SelectSarjAngle : public rclcpp::Node
+{
+private:
+
+    SarjAngleOptimizer::SarjAngleOptimizer sao;
+
+    rclcpp::Subscription<geometry_msgs::msg::Vector3>::SharedPtr subscription_;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr publisher_;
+
+
+public:
+    SelectSarjAngle() : rclcpp::Node("select_sarj_angle"){
+
+        space_station_design::SpaceStationDesign ss_design;
+        this->sao = SarjAngleOptimizer::SarjAngleOptimizer(ss_design);
+
+        this->subscription_ = this->create_subscription<geometry_msgs::msg::Vector3>(
+            TopicName::sun_direction_ssbf, 10,
+            std::bind(&SelectSarjAngle::topic_callback, this, std::placeholders::_1)
+            );
+
+        this->publisher_ = this->create_publisher<std_msgs::msg::Float64>(TopicName::target_sarj_angle_value, 10);
+    }
+
+
+private:
+    void topic_callback(const geometry_msgs::msg::Vector3::SharedPtr msg)
+    {
+        // ---- Calculate optimal SARJ angle ----
+        Eigen::Vector3d sun_direction_ssbf_vec(msg->x, msg->y, msg->z);
+
+        double theta = this->sao.optimize_sarj_angle(sun_direction_ssbf_vec);
+
+        RCLCPP_INFO(this->get_logger(), "Optimal SARJ angle=%4.2f[deg]", SarjAngleOptimizer::rad2deg(theta));
+
+        // --- Publish ---
+        auto output_msg = std_msgs::msg::Float64();
+        output_msg.data = theta;
+        this->publisher_->publish(output_msg);
+    }
+};
+
+
+int main(int argc, char* argv[]){
+    
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<SelectSarjAngle>());
+    rclcpp::shutdown();
+    
+    return 1;
+}
+
+
+#if 0
 
 constexpr double PI = 3.141592653589793;
 
@@ -88,3 +144,5 @@ int main(int argc, char* argv[]){
     
     return 1;
 }
+
+#endif
