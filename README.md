@@ -19,7 +19,7 @@ $ source install/setup.bash
 ```
 
 ## Run
-Launch four terminals.  
+Launch five terminals.  
 ### Terminal 1: Record
 Record simulation result as rosbag.  
 And convert by python script.
@@ -33,12 +33,17 @@ $ python3 python_script/rosbag_to_csv.py
 $ ros2 run demo_sarj_power_generation select_sarj_angle
 ```
 
-### Terminal 3: Dynamics & power generation node
+### Terminal 3: Thruster command node
+```
+$ ros2 run demo_sarj_power_generation select_thruster_command
+```
+
+### Terminal 4: Dynamics & power generation node
 ```
 $ ros2 run demo_sarj_power_generation power_generation
 ```
 
-### Terminal 4: Visualize Result
+### Terminal 5: Visualize Result
 Visualize the result by python script.  
 Before this, install modules "cartopy", "matplotlib" and "padnas" is required.
 ```
@@ -148,12 +153,20 @@ ros2 run demo_sarj_power_generation power_generation --ros-args -p simu_timestep
 ```
 
 ## Example Output
+Orbit:  
+![image](https://github.com/user-attachments/assets/17c9f19b-02ff-4155-896d-990df369abd3)
+
+Altitude:  
+If the thruster #1 and #2 fire, the space station is accelerated and its altitude gets higher.
+![image](https://github.com/user-attachments/assets/ebc097cc-6838-413f-b385-25a46a7344e7)
+
+
 If runing only power_generation node, SARJ angle is always zero. So SAP cannnot generate power efficiently.
 This plot shows change of battery SoC.  
-![image](https://github.com/user-attachments/assets/efe0787b-2ae6-4ea7-88ba-3971d389880f)
+![image](https://github.com/user-attachments/assets/59decd52-45ff-4599-96ce-869921d9bcf1)
   
-On the other hand, if running select_sarj_angle node too, optimal SARJ angle is set and SAP can generate power efficienty.
-![image](https://github.com/user-attachments/assets/35645633-b69d-4ec3-a96a-98fb5a5b8d2d)
+On the other hand, if running select_sarj_angle node too, optimal SARJ angle is set and SAP can generate power efficienty.  
+![image](https://github.com/user-attachments/assets/71d79d3f-713a-4cae-aa51-735253546066)
 
 ## To-do
 - Make 3D space station model as URDF and show it by rviz2
