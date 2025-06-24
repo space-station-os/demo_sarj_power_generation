@@ -54,8 +54,8 @@ $ python python_script/draw_3d_position.py
 The earth orbit around the Sun and the space station's orbit and attitude are simulated.
 
 ### Space Station Model
-Three axis shows space station body fixed (SSBF) frame.  
-![image](https://github.com/user-attachments/assets/c3a9c270-7683-48f7-a3d6-a2e6bfcccb7b)
+Three axis shows space station body fixed (SSBF) frame. #Numbers mean thrusters.    
+![image](https://github.com/user-attachments/assets/264d9157-c80e-499a-80e7-8d1675db9c71)
 
 ### Orbit Dynamics
 The earth rotetes around the Sun. Its orbit is perfect circle.  
