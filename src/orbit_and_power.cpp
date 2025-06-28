@@ -192,9 +192,9 @@ public:
         Eigen::Vector3d ss_init_euler_vec = this->declare_and_get_double_vector_parameter("ss_init_euler_angle", {0.0, 0.0, 0.0});
         Eigen::Vector3d ss_init_w_vec = this->declare_and_get_double_vector_parameter("ss_init_w_vec", {0.0, 0.0, 0.0});
 
-        double simu_timestep = this->declare_and_get_double_parameter("simu_timestep", 2.0);
-        double publish_period = this->declare_and_get_double_parameter("publish_period", 60.0);
-        double simu_speed_rate = this->declare_and_get_double_parameter("speed_rate", 400.0);
+        double simu_timestep = this->declare_and_get_double_parameter("simu_timestep", 10.0);
+        double simu_speed_rate = this->declare_and_get_double_parameter("speed_rate", 20.0);
+        double publish_period = this->declare_and_get_double_parameter("publish_period", 10.0);
 
         std::string line2 = this->declare_and_get_string_parameter(
             "tle_line2",
