@@ -142,9 +142,9 @@ Space station parameters and default value:
 
 | Parameter name   | Description            | Default value | Unit / Note   |
 | ---------------- | ---------------------- | ------------- | ------------- |
-| `simu_timestep`  | Timestep of simulation | `20`          | \[s]          |
-| `speed_rate`     | Rate of simulation     | `20`          | Dimensionless |
-| `publish_period` | Publish period         | `200`         | \[s]          |
+| `simu_timestep`  | Timestep of simulation | `10.0`          | \[s]          |
+| `speed_rate`     | Rate of simulation     | `20.0`          | Dimensionless |
+| `publish_period` | Publish period in simulation time         | `10.0`         | \[s]          |
 
 
 These parameters can be set by like:
